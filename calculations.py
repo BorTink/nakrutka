@@ -13,9 +13,9 @@ client = TelegramClient('sessionTestAnton', api_id, api_hash)
 def calculate_view_distribution(post_hour, total_views):
     # Define the base distribution for a 72-hour period
     base_distribution = np.array([
-        0.256, 0.124, 0.078, 0.070, 0.054, 0.047, 0.023, 0.016, 0.008, 0.007,
+        0.180, 0.134, 0.097, 0.084, 0.064, 0.047, 0.023, 0.016, 0.008, 0.007,
         0.008, 0.007, 0.008, 0.012, 0.016, 0.016, 0.013, 0.012, 0.012, 0.004,
-        0.008, 0.004, 0.004, 0.004] + [0.004]*48)
+        0.008, 0.004, 0.004, 0.004])
 
     # Early morning distribution from 00:00 to 05:59
     night_distribution = np.array([
@@ -40,7 +40,11 @@ def calculate_view_distribution(post_hour, total_views):
             rand
         ))
     else:
-        full_distribution = base_distribution
+        rand = np.random.choice([0.03, 0.04, 0.05], 72 - len(base_distribution))
+        full_distribution = np.concatenate((
+            base_distribution,
+            rand
+        ))
 
     full_distribution = full_distribution + np.random.uniform(low=-0.003, high=0.003, size=(72,))
     normalized_distribution = full_distribution[:72] / full_distribution[:72].sum()
@@ -80,14 +84,20 @@ def send_order(channel_url, post_id, views_per_post):
 
 async def distribute_views_over_periods(channel_url, post_id, distributions):
     first_order = True
+    second_order = True
     for hour, views in enumerate(distributions):
-        if not first_order:
+        if not first_order and not second_order:
             # Wait for 3600 seconds (1 hour) before placing the next order
             await asyncio.sleep(3600)
+        elif first_order:
+            first_order = False
         else:
-            first_order = False  # The first order is handled immediately, no wait
+            # On second order wait for 3900 seconds (1 hour 5 minutes) to correct TgStats spikes
+            await asyncio.sleep(3900)
+            second_order = False
+
         send_order(channel_url, post_id, views)  # Place the order
-        print(f"Order for hour {hour} placed immediately if first, else after delay.")
+        print(f"Order for hour {hour + 1} is placed.")
 
 
 async def setup_event_listener(channel_url, views_final):
