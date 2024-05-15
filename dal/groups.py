@@ -16,21 +16,10 @@ class Groups:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             link TEXT,
-            last_update DATETIME DEFAULT now()
+            amount INTEGER,
+            last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            auto_orders INTEGER DEFAULT 0,
             deleted INTEGER DEFAULT 0
-            )
-        """)
-
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS order(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            group_id INTEGER FOREIGN KEY groups,
-            post_id INTEGER,
-            full_amount INTEGER,
-            left_amount INTEGER,
-            completed INTEGER DEFAULT 0,
-            stopped INTEGER DEFAULT 0,
-            created_date DATETIME DEFAULT now()
             )
         """)
 
@@ -40,17 +29,47 @@ class Groups:
             SELECT *
             FROM groups
             WHERE deleted == 0
-            ORDER BYH last_update DESC
+            ORDER BY last_update DESC
         """)
 
         groups = cur.fetchall()
-        if groups:
-            return [Group(**res) for res in groups]
+        return [Group(**res) for res in groups]
 
     @classmethod
-    async def add_group(cls, name, link):
+    async def get_group_by_id(cls, group_id):
         cur.execute("""
-            INSERT INTO groups (name, link)
-            VALUES (?, ?)
-        """, (name, link))
+                SELECT *
+                FROM groups
+                WHERE deleted == 0
+                AND id = ?
+                ORDER BY last_update DESC
+            """, (group_id,))
 
+        group = cur.fetchone()
+        if group:
+            return Group(**group)
+        else:
+            return None
+
+    @classmethod
+    async def add_group(cls, name, link, amount):
+        cur.execute("""
+            INSERT INTO groups (name, link, amount)
+            VALUES (?, ?, ?)
+        """, (name, link, amount))
+
+    @classmethod
+    async def update_amount_by_id(cls, group_id, amount):
+        cur.execute("""
+            UPDATE groups
+            SET amount = ?
+            WHERE id = ?
+        """, (amount, group_id))
+
+    @classmethod
+    async def update_auto_orders_by_id(cls, group_id, auto_orders):
+        cur.execute("""
+                UPDATE groups
+                SET auto_orders = ?
+                WHERE id = ?
+            """, (auto_orders, group_id))
