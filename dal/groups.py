@@ -24,6 +24,10 @@ class Groups:
         """)
 
     @classmethod
+    async def get_db_cur(cls):
+        return db, cur
+
+    @classmethod
     async def get_groups_list(cls):
         cur.execute("""
             SELECT *

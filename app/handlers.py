@@ -186,8 +186,65 @@ async def get_link(message: types.Message, state: FSMContext):
         )
     else:
         group_id = await get_info_from_state(state, 'group_id')
-        await dal.Groups.update_amount_by_id(int(message.text), group_id)
+        await dal.Groups.update_amount_by_id(group_id=group_id, amount=int(message.text))
         await message.answer('Кол-во было успешно обновлено.')
+
+        group = await dal.Groups.get_group_by_id(group_id)
+        await state.set_state('В группе')
+        await message.answer(
+            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+            reply_markup=kb.group
+        )
+
+
+@dp.callback_query_handler(state='В группе', text='Накрутить старый пост')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(
+        'Введите id поста для накрутки'
+    )
+    await state.set_state('Введите id поста для накрутки')
+
+
+@dp.message_handler(state='Введите id поста для накрутки')
+async def get_link(message: types.Message, state: FSMContext):
+    if not message.text.isnumeric():
+        await message.answer(
+            'Введите число'
+        )
+    else:
+        group_id = await get_info_from_state(state, 'group_id')
+        new_post_id = int(message.text)
+
+        orders = await dal.Orders.get_orders_list_by_group_id(group_id)
+        for i in orders:
+            if new_post_id == i.post_id:
+                await message.answer('Для такого поста уже существует ордер')
+                new_post_id = None
+
+        if new_post_id:
+            await add_info_to_state(state, 'post_id', new_post_id)
+            await message.answer(
+                'Введите, сколько нужно накрутить просмотров на этот пост'
+            )
+            await state.set_state('Старый пост - кол-во накрутки')
+
+
+@dp.message_handler(state='Старый пост - кол-во накрутки')
+async def get_link(message: types.Message, state: FSMContext):
+    if not message.text.isnumeric():
+        await message.answer(
+            'Введите число'
+        )
+    else:
+        group_id = await get_info_from_state(state, 'group_id')
+        post_id = await get_info_from_state(state, 'post_id')
+        amount = int(message.text)
+
+        await dal.Orders.add_order(group_id, post_id, amount)
+
+        await message.answer(
+            'Ордер был добавлен'
+        )
 
         group = await dal.Groups.get_group_by_id(group_id)
         await state.set_state('В группе')
@@ -199,15 +256,75 @@ async def get_link(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(state='В группе', text='Получить список постов')
 async def add_group(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.answer(
-        'Введите id группы для просмотра ее постов'
-    )
-    await state.set_state('Введите id группы')
+    group_id = await get_info_from_state(state, 'group_id')
+    orders = await dal.Orders.get_orders_list_by_group_id(group_id)
+    if orders:
+        text = 'Список заказов: \n'
+        for order in orders:
+            text += (
+                f'{order.post_id} | Всего для накрутки: {order.full_amount} | Осталось накрутить: {order.left_amount} | '
+                f'Статус: {"остановлено" if order.stopped else "окончено" if order.completed else "в процессе"}\n')
+        await state.set_state('В заказах')
+        await callback.message.answer(
+            text,
+            reply_markup=kb.orders
+        )
+    else:
+        group = await dal.Groups.get_group_by_id(group_id)
+        await callback.message.answer(
+            'Заказов пока нет.'
+        )
+        await callback.message.answer(
+            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+            reply_markup=kb.group
+        )
 
 
-@dp.callback_query_handler(state='В группе', text='Накрутить старый пост')
+@dp.callback_query_handler(state='В заказах', text=['Отключить накрутку в заказе', 'Включить обратно накрутку в заказе'])
 async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == 'Отключить накрутку в заказе':
+        await add_info_to_state(state, 'stopped', 1)
+    elif callback.data == 'Включить обратно накрутку в заказе':
+        await add_info_to_state(state, 'stopped', 0)
+
     await callback.message.answer(
-        'Введите id группы для просмотра ее постов'
+        'Введите id заказа'
     )
-    await state.set_state('Введите id группы')
+    await state.set_state('Введите id заказа')
+
+
+@dp.message_handler(state='Введите id заказа')
+async def get_link(message: types.Message, state: FSMContext):
+    if not message.text.isnumeric():
+        await message.answer(
+            'Введите число'
+        )
+    else:
+        order_id = int(message.text)
+        this_order = await dal.Orders.get_order_by_id(order_id)
+
+        group_id = await get_info_from_state(state, 'group_id')
+
+        group = await dal.Groups.get_group_by_id(group_id)
+
+        if not this_order:
+            await message.answer(
+                'Такого заказа не существует'
+            )
+
+            await state.set_state('В группе')
+            await message.answer(
+                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+                reply_markup=kb.group
+            )
+
+        else:
+            stopped = await get_info_from_state(state, 'stopped')
+            await dal.Orders.update_stopped_by_id(order_id=order_id, stopped=stopped)
+            await message.answer(f'Заказ c id = {order_id} был остановлен')
+
+            await state.set_state('В группе')
+            await message.answer(
+                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+                reply_markup=kb.group
+            )

@@ -27,3 +27,13 @@ group_3 = InlineKeyboardButton(
     'Добавить накрутку на старый пост', callback_data='Накрутить старый пост'
 )
 group.add(group_1).add(group_2).add(group_3)
+
+
+orders = InlineKeyboardMarkup()
+orders_1 = InlineKeyboardButton(
+    'Отключить накрутку в заказе', callback_data='Отключить накрутку в заказе'
+)
+orders_2 = InlineKeyboardButton(
+    'Включить обратно накрутку в заказе', callback_data='Включить обратно накрутку в заказе'
+)
+orders.add(orders_1).add(orders_2)
