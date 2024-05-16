@@ -72,7 +72,8 @@ def send_order(channel_url, post_id, views_per_post):
     if views_per_post > 100:
         service_id = 1107  # Update this with the correct service ID from soc-proof.su if needed
     else:
-        service_id = 1564
+        views_per_post = round(views_per_post/0.4)  # Изменяем кол-во постов, т.к. 60% недолив на этой услуге
+        service_id = 362
 
     api_key = '14b5170f4b9abff14a3a6719e05fe54e'  # Updated API key from your message
     post_link = f"{channel_url}/{post_id}"
