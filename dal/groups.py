@@ -73,7 +73,7 @@ class Groups:
     @classmethod
     async def update_auto_orders_by_id(cls, group_id, auto_orders):
         cur.execute("""
-                UPDATE groups
-                SET auto_orders = ?
-                WHERE id = ?
-            """, (auto_orders, group_id))
+            UPDATE groups
+            SET auto_orders = ?
+            WHERE id = ?
+        """, (auto_orders, group_id))

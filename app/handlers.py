@@ -240,7 +240,7 @@ async def get_link(message: types.Message, state: FSMContext):
         post_id = await get_info_from_state(state, 'post_id')
         amount = int(message.text)
 
-        await dal.Orders.add_order(group_id, post_id, amount)
+        await dal.Orders.add_order(group_id, post_id, amount, stopped=1)
 
         await message.answer(
             'Ордер был добавлен'

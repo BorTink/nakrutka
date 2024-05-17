@@ -2,6 +2,7 @@ import sqlite3 as sq
 
 import dal
 from schemas import Order
+from schemas import Order, OrderWithGroupInfo
 
 
 class Orders:
@@ -17,6 +18,8 @@ class Orders:
             post_id INTEGER,
             full_amount INTEGER,
             left_amount INTEGER,
+            
+            started INTEGER DEFAULT 0,
             completed INTEGER DEFAULT 0,
             stopped INTEGER DEFAULT 0,
             deleted INTEGER DEFAULT 0,
@@ -32,11 +35,12 @@ class Orders:
             SELECT *
             FROM orders
             WHERE deleted == 0
+            AND started == 0
             ORDER BY created_date DESC
         """)
 
         orders = cur.fetchall()
-        return [Order(**res) for res in orders]
+        return [OrderWithGroupInfo(**res) for res in orders]
 
     @classmethod
     async def get_orders_list_by_group_id(cls, group_id):
@@ -68,33 +72,41 @@ class Orders:
             return None
 
     @classmethod
-    async def add_order(cls, group_id, post_id, amount):
+    async def add_order(cls, group_id, post_id, amount, stopped=0):
         cur.execute("""
-            INSERT INTO orders (group_id, post_id, full_amount, left_amount)
-            VALUES (?, ?, ?, ?)
-        """, (group_id, post_id, amount, amount))
+            INSERT INTO orders (group_id, post_id, full_amount, left_amount, stopped)
+            VALUES (?, ?, ?, ?, ?)
+        """, (group_id, post_id, amount, amount, stopped))
 
     @classmethod
-    async def update_amount_by_id(cls, order_id, amount):
+    async def update_left_amount_by_id(cls, order_id, amount):
         cur.execute("""
             UPDATE orders
-            SET amount = ?
+            SET left_amount = ?
             WHERE post_id = ?
         """, (amount, order_id))
         db.commit()
 
     @classmethod
-    async def update_auto_orders_by_id(cls, order_id, auto_orders):
+    async def update_completed_by_id(cls, order_id, completed):
         cur.execute("""
                 UPDATE orders
-                SET auto_orders = ?
+                SET completed = ?
                 WHERE post_id = ?
-            """, (auto_orders, order_id))
+            """, (completed, order_id))
 
     @classmethod
     async def update_stopped_by_id(cls, order_id, stopped):
         cur.execute("""
+                UPDATE orders
+                SET stopped = ?
+                WHERE post_id = ?
+            """, (stopped, order_id))
+
+    @classmethod
+    async def update_started_by_id(cls, order_id, started):
+        cur.execute("""
                     UPDATE orders
-                    SET stopped = ?
+                    SET started = ?
                     WHERE post_id = ?
-                """, (stopped, order_id))
+                """, (started, order_id))

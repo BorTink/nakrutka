@@ -1,2 +1,2 @@
 from .groups import Group
-from .orders import Order
+from .orders import Order, OrderWithGroupInfo
