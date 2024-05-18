@@ -81,9 +81,9 @@ async def get_link(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state='Кол-во накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric():
+    if not message.text.isnumeric() or int(message.text) < 1000:
         await message.answer(
-            'Введите число'
+            'Введите число не менее 1000'
         )
     else:
         await add_info_to_state(state, 'amount', int(message.text))
@@ -180,9 +180,9 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(state='Новое значение накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric():
+    if not message.text.isnumeric() or int(message.text) < 1000:
         await message.answer(
-            'Введите число'
+            'Введите число не менее 1000'
         )
     else:
         group_id = await get_info_from_state(state, 'group_id')
@@ -231,9 +231,9 @@ async def get_link(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state='Старый пост - кол-во накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric():
+    if not message.text.isnumeric() or int(message.text) < 1000:
         await message.answer(
-            'Введите число'
+            'Введите число не менее 1000'
         )
     else:
         group_id = await get_info_from_state(state, 'group_id')
