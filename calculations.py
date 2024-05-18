@@ -1,4 +1,5 @@
 from telethon import TelegramClient, events
+from loguru import logger
 import asyncio
 import requests
 import numpy as np
@@ -78,7 +79,7 @@ def send_order(channel_url, post_id, views_per_post):
     post_link = f"{channel_url}/{post_id}"
     order_url = f"https://partner.soc-proof.su/api/v2?action=add&service={service_id}&link={post_link}&quantity={views_per_post}&key={api_key}"
     response = requests.post(order_url)  # Updated to use POST as specified in the PDF
-    print(f"Order placed for {views_per_post} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
+    logger.info(f"Order placed for {views_per_post} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
     return response.json()
 
 
@@ -106,17 +107,17 @@ async def distribute_views_over_periods(channel_url, post_id, distributions):
             do_order = await dal.Orders.get_order_by_id(order_id=post_id)
 
         if do_order.completed == 1 or do_order.order_deleted == 1:
-            print(f'Order with post_id = {post_id} is completed or deleted')
+            logger.info(f'Order with post_id = {post_id} is completed or deleted')
             break
 
         send_order(channel_url, post_id, views)  # Place the order
-        print(f"Order for hour {hour + 1} is placed.")
+        logger.info(f"Order for hour {hour + 1} is placed.")
 
         left_amount = int(do_order.left_amount) - int(views)
         await dal.Orders.update_left_amount_by_id(order_id=post_id, amount=left_amount)
         if left_amount <= 0:
             await dal.Orders.update_completed_by_id(post_id, 1)
-            print(f'Order with post_id = {post_id} is completed')
+            logger.info(f'Order with post_id = {post_id} is completed')
             break
 
 
@@ -138,12 +139,12 @@ async def start_post_views_increasing(channel_url, post_id, views):
 async def start_backend():
     await dal.Groups.create_db()
     await dal.Orders.create_db()
-    print('Backend started')
+    logger.info('Backend started')
 
     while True:
         groups = await dal.Groups.get_not_setup_groups_list()
         for group in groups:
-            print(f'Check group - {group.name}')
+            logger.info(f'Check group - {group.name}')
 
             channel_url = group.link
             group_id = group.id
@@ -154,7 +155,7 @@ async def start_backend():
 
         orders = await dal.Orders.get_not_started_orders_list()
         for order in orders:
-            print(f'Check order - {order.group_link}/{order.post_id}')
+            logger.info(f'Check order - {order.group_link}/{order.post_id}')
 
             channel_url = order.group_link
             views_final = order.left_amount
@@ -165,6 +166,6 @@ async def start_backend():
 
 
 if __name__ == "__main__":
-    print('Backend post views increasing programm has been started')
+    logger.info('Backend post views increasing programm has been started')
     with client:
         client.loop.run_until_complete(start_backend())
