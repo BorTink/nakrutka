@@ -1,14 +1,20 @@
+import os
+
 from aiogram import Dispatcher, types, Bot
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
+
+from dotenv import load_dotenv
 
 import dal
 import app.keyboards as kb
 from utils import add_info_to_state, get_info_from_state
 
 # Создание объектов бота, хранилища и диспетчера
-bot = Bot('6413929628:AAEXGT4F1fDsIOonxzk700ADXQ30JoXEm70')  # Вводим сюда токен нашего бота
+load_dotenv()
+bot = Bot(os.getenv('TOKEN'))
+
 storage = MemoryStorage()  # Создаем хранилище в памяти для запоминания состояний
 # Создаем диспетчера, через которого бот будет запускаться, вместе с утилитой для логов,
 dp = Dispatcher(bot=bot, storage=storage)
