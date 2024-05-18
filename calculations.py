@@ -94,7 +94,7 @@ async def distribute_views_over_periods(channel_url, post_id, distributions):
             first_order = False
         else:
             # On second order wait for 3900 seconds (1 hour 5 minutes) to correct TgStats spikes
-            await asyncio.sleep(3900)
+            await asyncio.sleep(4200)
             second_order = False
 
         do_order = await dal.Orders.get_order_by_id(order_id=post_id)
