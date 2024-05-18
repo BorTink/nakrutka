@@ -54,7 +54,7 @@ def calculate_view_distribution(post_hour, total_views):
     accumulated_views = views_distribution.cumsum()
     if accumulated_views[-1] > total_views:
         last_necessary_order = np.argmax(accumulated_views >= total_views)
-        views_distribution[last_necessary_order + 1:] = 0
+        views_distribution = views_distribution[:last_necessary_order + 1]
 
     return views_distribution
 
@@ -114,7 +114,7 @@ async def distribute_views_over_periods(channel_url, post_id, distributions):
 
         left_amount = int(do_order.left_amount) - int(views)
         await dal.Orders.update_left_amount_by_id(order_id=post_id, amount=left_amount)
-        if do_order.left_amount < 0:
+        if left_amount <= 0:
             await dal.Orders.update_completed_by_id(post_id, 1)
             print(f'Order with post_id = {post_id} is completed')
             break
