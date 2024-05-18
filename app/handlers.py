@@ -321,7 +321,11 @@ async def get_link(message: types.Message, state: FSMContext):
         else:
             stopped = await get_info_from_state(state, 'stopped')
             await dal.Orders.update_stopped_by_id(order_id=order_id, stopped=stopped)
-            await message.answer(f'Заказ c id = {order_id} был остановлен')
+            text = f'Заказ c id = {order_id} был '
+            text += 'возобновлен' if stopped == 0 else 'остановлен'
+            await message.answer(
+                text
+            )
 
             await state.set_state('В группе')
             await message.answer(

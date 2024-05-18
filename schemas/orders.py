@@ -11,7 +11,7 @@ class Order(BaseModel):
     started: int
     completed: int
     stopped: int
-    deleted: int
+    order_deleted: int
 
 
 class OrderWithGroupInfo(BaseModel):
@@ -24,6 +24,6 @@ class OrderWithGroupInfo(BaseModel):
     started: int
     completed: int
     stopped: int
-    deleted: int
+    order_deleted: int
 
     group_link: str
