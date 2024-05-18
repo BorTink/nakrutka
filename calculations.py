@@ -1,8 +1,10 @@
-import asyncio
 from telethon import TelegramClient, events
+import asyncio
 import requests
 import numpy as np
 import datetime
+
+import dal
 
 # Telegram API credentials
 api_id = 19418891
@@ -11,20 +13,18 @@ client = TelegramClient('sessionTestAnton', api_id, api_hash)
 
 
 def calculate_view_distribution(post_hour, total_views):
-    # Define the base distribution for a 72-hour period
     base_distribution = np.array([
-        0.180, 0.134, 0.097, 0.084, 0.064, 0.047, 0.023, 0.016, 0.008, 0.007,
-        0.008, 0.007, 0.008, 0.012, 0.016, 0.016, 0.013, 0.012, 0.012, 0.004,
-        0.008, 0.004, 0.004, 0.004])
+        1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
+        0.13, 0.11, 0.09, 0.06, 0.08, 0.06, 0.05, 0.04, 0.04])
 
-    # Early morning distribution from 00:00 to 05:59
+    # Night - early morning distribution from 21:00 to 06:59
     night_distribution = np.array([
-         0.8, 0.7, 0.5, 0.4, 0.4, 0.3, 0.3, 0.3, 0.15, 0.4,
-         0.8, 1, 0.8, 0.9, 0.65, 0.5, 0.45, 0.14, 0.11, 0.08, 0.2, 0.05,
-         0.04, 0.04])
+        0.65, 0.5, 0.45, 0.4, 0.35, 0.3, 0.2, 0.15, 0.2, 0.4,
+        0.7, 0.9, 0.7, 0.6, 0.55, 0.45, 0.33, 0.14, 0.11, 0.08, 0.2, 0.05,
+        0.04, 0.04])
     night_distribution_main = np.array([
-        0.8, 0.7, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.15, 0.4,
-        0.8, 1, 0.8, 0.9, 0.65, 0.5, 0.45, 0.14, 0.11, 0.08, 0.2, 0.05,
+        0.65, 0.5, 0.3, 0.25, 0.2, 0.18, 0.15, 0.12, 0.2, 0.4,
+        0.7, 0.9, 0.7, 0.6, 0.5, 0.4, 0.3, 0.15, 0.11, 0.1, 0.2, 0.05,
         0.04, 0.04])
 
     if post_hour >= 21 or post_hour < 7:
@@ -72,8 +72,7 @@ def send_order(channel_url, post_id, views_per_post):
     if views_per_post > 100:
         service_id = 1107  # Update this with the correct service ID from soc-proof.su if needed
     else:
-        views_per_post = round(views_per_post/0.4)  # Изменяем кол-во постов, т.к. 60% недолив на этой услуге
-        service_id = 362
+        service_id = 997
 
     api_key = '14b5170f4b9abff14a3a6719e05fe54e'  # Updated API key from your message
     post_link = f"{channel_url}/{post_id}"
@@ -97,33 +96,75 @@ async def distribute_views_over_periods(channel_url, post_id, distributions):
             await asyncio.sleep(3900)
             second_order = False
 
+        do_order = await dal.Orders.get_order_by_id(order_id=post_id)
+
+        if do_order.started == 0:
+            await dal.Orders.update_started_by_id(order_id=post_id, started=1)
+
+        while do_order.stopped == 1 and do_order.completed == 0 and do_order.order_deleted == 0:
+            await asyncio.sleep(10)
+            do_order = await dal.Orders.get_order_by_id(order_id=post_id)
+
+        if do_order.completed == 1 or do_order.order_deleted == 1:
+            print(f'Order with post_id = {post_id} is completed or deleted')
+            break
+
         send_order(channel_url, post_id, views)  # Place the order
         print(f"Order for hour {hour + 1} is placed.")
 
+        left_amount = int(do_order.left_amount) - int(views)
+        await dal.Orders.update_left_amount_by_id(order_id=post_id, amount=left_amount)
+        if do_order.left_amount < 0:
+            await dal.Orders.update_completed_by_id(post_id, 1)
+            print(f'Order with post_id = {post_id} is completed')
+            break
 
-async def setup_event_listener(channel_url, views_final):
+
+async def setup_event_listener(channel_url, views_final, group_id):
     channel = await client.get_entity(channel_url)
 
     @client.on(events.NewMessage(chats=channel))
     async def handler(event):
-        post_time = event.message.date.astimezone().hour
-        distributions = calculate_view_distribution(post_time, views_final)
-        await distribute_views_over_periods(channel_url, event.message.id, distributions)
+        await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=views_final)
+        await start_post_views_increasing(channel_url, event.message.id, views_final)
 
 
-async def main():
-    try:
-        with open('Client.txt', 'r') as file:
-            lines = file.readlines()
-            channel_url = lines[0].strip()
-            views_final = int(lines[1].strip())
-    except Exception as e:
-        print(f"Failed to read 'Client.txt': {e}")
-        return
+async def start_post_views_increasing(channel_url, post_id, views):
+    post_time = datetime.datetime.now().astimezone().hour
+    distributions = calculate_view_distribution(post_time, views)
+    await distribute_views_over_periods(channel_url, post_id, distributions)
 
-    await client.start()
-    await setup_event_listener(channel_url, views_final)
-    await client.run_until_disconnected()
 
-with client:
-    client.loop.run_until_complete(main())
+async def start_backend():
+    await dal.Groups.create_db()
+    await dal.Orders.create_db()
+    print('Backend started')
+
+    while True:
+        groups = await dal.Groups.get_not_setup_groups_list()
+        for group in groups:
+            print(f'Check group - {group.name}')
+
+            channel_url = group.link
+            group_id = group.id
+            views_final = group.amount
+
+            asyncio.create_task(setup_event_listener(channel_url, views_final, group_id))
+            await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
+
+        orders = await dal.Orders.get_not_started_orders_list()
+        for order in orders:
+            print(f'Check order - {order.group_link}/{order.post_id}')
+
+            channel_url = order.group_link
+            views_final = order.left_amount
+
+            asyncio.create_task(start_post_views_increasing(channel_url, order.post_id, views_final))
+
+        await asyncio.sleep(5)
+
+
+if __name__ == "__main__":
+    print('Backend post views increasing programm has been started')
+    with client:
+        client.loop.run_until_complete(start_backend())
