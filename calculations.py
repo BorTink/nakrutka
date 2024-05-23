@@ -78,10 +78,10 @@ def send_order(channel_url, post_id, views_per_post):
     channel_name = get_channel_name(channel_url)
     # Service 1107 cannot manage requests with less than 100 views,
     # so we reroute request to a different service id
-    if views_per_post > 100:
-        service_id = 1107  # Update this with the correct service ID from soc-proof.su if needed
+    if views_per_post > 200:
+        service_id = 4805  # Update this with the correct service ID from soc-proof.su if needed
     else:
-        service_id = 997
+        service_id = 4210
 
     api_key = '14b5170f4b9abff14a3a6719e05fe54e'  # Updated API key from your message
     post_link = f"{channel_url}/{post_id}"
