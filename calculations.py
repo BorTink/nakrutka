@@ -51,6 +51,7 @@ def calculate_view_distribution(post_hour, total_views):
     normalized_distribution = full_distribution[:72] / full_distribution[:72].sum()
     views_distribution = np.round(normalized_distribution * total_views).astype(int)
     views_distribution = np.where(views_distribution < 10, views_distribution + 10, views_distribution)
+    views_distribution = np.where(85 <= views_distribution < 100, views_distribution + 15, views_distribution)
 
     accumulated_views = views_distribution.cumsum()
     if accumulated_views[-1] > total_views:
