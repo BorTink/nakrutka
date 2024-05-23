@@ -87,7 +87,8 @@ class Groups:
         with closing(db.cursor()) as cur:
             cur.execute("""
                 UPDATE groups
-                SET amount = ?
+                SET amount = ?,
+                last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                 WHERE id = ?
             """, (amount, group_id))
 
@@ -96,7 +97,8 @@ class Groups:
         with closing(db.cursor()) as cur:
             cur.execute("""
                 UPDATE groups
-                SET auto_orders = ?
+                SET auto_orders = ?,
+                last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                 WHERE id = ?
             """, (auto_orders, group_id))
 
@@ -105,7 +107,16 @@ class Groups:
         with closing(db.cursor()) as cur:
             cur.execute("""
                 UPDATE groups
-                SET setup = ?
+                SET setup = ?,
+                last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                 WHERE id = ?
             """, (setup, group_id))
 
+    @classmethod
+    def drop_setups(cls):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                UPDATE groups
+                SET setup = 0,
+                last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+            """)

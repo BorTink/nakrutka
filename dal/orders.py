@@ -19,12 +19,13 @@ class Orders:
                 post_id INTEGER,
                 full_amount INTEGER,
                 left_amount INTEGER,
+                hour INTEGER DEFAULT 0,
                 
                 started INTEGER DEFAULT 0,
                 completed INTEGER DEFAULT 0,
                 stopped INTEGER DEFAULT 0,
                 order_deleted INTEGER DEFAULT 0,
-                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
                 FOREIGN KEY (group_id) REFERENCES groups(id)
                 )
@@ -39,8 +40,22 @@ class Orders:
                 JOIN groups ON groups.id = orders.group_id
                 WHERE order_deleted == 0
                 AND started == 0
-                ORDER BY created_date DESC
+                ORDER BY last_update DESC
             """)
+
+            orders = cur.fetchall()
+            return [OrderWithGroupInfo(**res) for res in orders]
+
+    @classmethod
+    async def get_orders_list(cls):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                    SELECT orders.*, groups.link as group_link
+                    FROM orders
+                    JOIN groups ON groups.id = orders.group_id
+                    WHERE order_deleted == 0
+                    ORDER BY last_update DESC
+                """)
 
             orders = cur.fetchall()
             return [OrderWithGroupInfo(**res) for res in orders]
@@ -53,7 +68,7 @@ class Orders:
                     FROM orders
                     WHERE order_deleted == 0
                     AND group_id = ?
-                    ORDER BY created_date DESC
+                    ORDER BY last_update DESC
                 """, (group_id,))
 
             orders = cur.fetchall()
@@ -67,7 +82,7 @@ class Orders:
                     FROM orders
                     WHERE order_deleted == 0
                     AND post_id = ?
-                    ORDER BY created_date DESC
+                    ORDER BY last_update DESC
                 """, (order_id,))
 
             order = cur.fetchone()
@@ -89,7 +104,8 @@ class Orders:
         with closing(db.cursor()) as cur:
             cur.execute("""
                 UPDATE orders
-                SET left_amount = ?
+                SET left_amount = ?,
+                last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                 WHERE post_id = ?
             """, (amount, order_id))
 
@@ -98,7 +114,8 @@ class Orders:
         with closing(db.cursor()) as cur:
             cur.execute("""
                     UPDATE orders
-                    SET completed = ?
+                    SET completed = ?,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                     WHERE post_id = ?
                 """, (completed, order_id))
 
@@ -107,7 +124,8 @@ class Orders:
         with closing(db.cursor()) as cur:
             cur.execute("""
                     UPDATE orders
-                    SET stopped = ?
+                    SET stopped = ?,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                     WHERE post_id = ?
                 """, (stopped, order_id))
 
@@ -115,7 +133,18 @@ class Orders:
     async def update_started_by_id(cls, order_id, started):
         with closing(db.cursor()) as cur:
             cur.execute("""
-                        UPDATE orders
-                        SET started = ?
-                        WHERE post_id = ?
-                    """, (started, order_id))
+                    UPDATE orders
+                    SET started = ?,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                    WHERE post_id = ?
+                """, (started, order_id))
+
+    @classmethod
+    async def update_hour_by_id(cls, order_id, hour):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                    UPDATE orders
+                    SET hour = ?,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                    WHERE post_id = ?
+                """, (hour, order_id))

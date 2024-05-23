@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -13,6 +15,8 @@ class Order(BaseModel):
     stopped: int
     order_deleted: int
 
+    last_update: datetime
+
 
 class OrderWithGroupInfo(BaseModel):
     id: int
@@ -20,10 +24,13 @@ class OrderWithGroupInfo(BaseModel):
     post_id: int
     full_amount: int
     left_amount: int
+    hour: int
 
     started: int
     completed: int
     stopped: int
     order_deleted: int
+
+    last_update: datetime
 
     group_link: str

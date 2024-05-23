@@ -6,3 +6,6 @@ class Group(BaseModel):
     name: str
     link: str
     amount: int
+    setup: int
+    auto_orders: int
+    deleted: int

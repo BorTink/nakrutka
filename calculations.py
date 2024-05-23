@@ -1,9 +1,12 @@
+import datetime
+import sys
+import os
+
 from telethon import TelegramClient, events
 from loguru import logger
 import asyncio
 import requests
 import numpy as np
-import datetime
 
 import dal
 
@@ -12,8 +15,10 @@ api_id = 19418891
 api_hash = '9dc4be6c707b19578aa61328972af119'
 client = TelegramClient('sessionTestAnton', api_id, api_hash)
 
+first_hour_wait = 3600
+second_hour_wait = 4200
 
-def calculate_view_distribution(post_hour, total_views):
+def calculate_view_distribution(post_hour, total_views, cur_hour):
     base_distribution = np.array([
         1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
         0.13, 0.11, 0.09, 0.06, 0.08, 0.06, 0.05, 0.04, 0.04])
@@ -51,14 +56,16 @@ def calculate_view_distribution(post_hour, total_views):
     normalized_distribution = full_distribution[:72] / full_distribution[:72].sum()
     views_distribution = np.round(normalized_distribution * total_views).astype(int)
     views_distribution = np.where(views_distribution < 10, views_distribution + 10, views_distribution)
-    views_distribution = np.where(85 <= views_distribution < 100, views_distribution + 15, views_distribution)
+
+    np_and = np.logical_and(views_distribution >= 85, views_distribution < 100)
+    views_distribution = np.where(np_and, views_distribution + 15, views_distribution)
 
     accumulated_views = views_distribution.cumsum()
     if accumulated_views[-1] > total_views:
         last_necessary_order = np.argmax(accumulated_views >= total_views)
         views_distribution = views_distribution[:last_necessary_order + 1]
 
-    return views_distribution
+    return views_distribution[cur_hour:]
 
 
 def get_channel_name(channel_url):
@@ -84,18 +91,19 @@ def send_order(channel_url, post_id, views_per_post):
     return response.json()
 
 
-async def distribute_views_over_periods(channel_url, post_id, distributions):
+async def distribute_views_over_periods(channel_url, post_id, distributions, hour):
     first_order = True
     second_order = True
-    for hour, views in enumerate(distributions):
+
+    for views in distributions:
         if not first_order and not second_order:
             # Wait for 3600 seconds (1 hour) before placing the next order
-            await asyncio.sleep(3600)
+            await asyncio.sleep(first_hour_wait)
         elif first_order:
             first_order = False
         else:
             # On second order wait for 3900 seconds (1 hour 5 minutes) to correct TgStats spikes
-            await asyncio.sleep(4200)
+            await asyncio.sleep(second_hour_wait)
             second_order = False
 
         do_order = await dal.Orders.get_order_by_id(order_id=post_id)
@@ -111,6 +119,8 @@ async def distribute_views_over_periods(channel_url, post_id, distributions):
             logger.info(f'Order with post_id = {post_id} is completed or deleted')
             break
 
+        await dal.Orders.update_hour_by_id(order_id=post_id, hour=hour + 1)
+
         send_order(channel_url, post_id, views)  # Place the order
         logger.info(f"Order for hour {hour + 1} is placed.")
 
@@ -121,20 +131,28 @@ async def distribute_views_over_periods(channel_url, post_id, distributions):
             logger.info(f'Order with post_id = {post_id} is completed')
             break
 
+        hour += 1
+
 
 async def setup_event_listener(channel_url, views_final, group_id):
+    async def new_message_handler(event):
+        group = await dal.Groups.get_group_by_id(group_id=group_id)
+        if group.deleted:
+            client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
+        elif group.auto_orders == 1:
+            await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=views_final)
+            await start_post_views_increasing(channel_url, event.message.id, views_final, cur_hour=0)
+        else:
+            logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
+
     channel = await client.get_entity(channel_url)
-
-    @client.on(events.NewMessage(chats=channel))
-    async def handler(event):
-        await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=views_final)
-        await start_post_views_increasing(channel_url, event.message.id, views_final)
+    client.add_event_handler(new_message_handler, events.NewMessage(chats=channel))
 
 
-async def start_post_views_increasing(channel_url, post_id, views):
+async def start_post_views_increasing(channel_url, post_id, views, cur_hour):
     post_time = datetime.datetime.now().astimezone().hour
-    distributions = calculate_view_distribution(post_time, views)
-    await distribute_views_over_periods(channel_url, post_id, distributions)
+    distributions = calculate_view_distribution(post_time, views, cur_hour)
+    await distribute_views_over_periods(channel_url, post_id, distributions, hour=cur_hour)
 
 
 async def start_backend():
@@ -154,19 +172,45 @@ async def start_backend():
             asyncio.create_task(setup_event_listener(channel_url, views_final, group_id))
             await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
 
-        orders = await dal.Orders.get_not_started_orders_list()
+        orders = await dal.Orders.get_orders_list()
         for order in orders:
-            logger.info(f'Check order - {order.group_link}/{order.post_id}')
+            if order.hour > 71:
+                await dal.Orders.update_completed_by_id(order_id=order.id, completed=1)
 
-            channel_url = order.group_link
-            views_final = order.left_amount
+            elif any([
+                order.started == 0,
+                order.completed == 0 and
+                (datetime.datetime.utcnow() - order.last_update) > datetime.timedelta(seconds=first_hour_wait + 300)
+            ]):
+                logger.info(f'Doing order - {order.group_link}/{order.post_id}')
+                channel_url = order.group_link
+                views_final = order.left_amount
 
-            asyncio.create_task(start_post_views_increasing(channel_url, order.post_id, views_final))
+                asyncio.create_task(start_post_views_increasing(channel_url, order.post_id, views_final, order.hour))
 
         await asyncio.sleep(5)
 
 
+def drop_group_setups():
+    dal.Groups.drop_setups()
+
+
 if __name__ == "__main__":
     logger.info('Backend post views increasing programm has been started')
-    with client:
-        client.loop.run_until_complete(start_backend())
+    try:
+        with client:
+            client.loop.run_until_complete(start_backend())
+    except KeyboardInterrupt:
+        drop_group_setups()
+        logger.info(f'Программа прекратила работу.')
+        try:
+            sys.exit(130)
+        except SystemExit:
+            os._exit(130)
+    except Exception as exc:
+        drop_group_setups()
+        logger.info(f'Программа прекратила работу. Ошибка - {exc}')
+        try:
+            sys.exit(130)
+        except SystemExit:
+            os._exit(130)
