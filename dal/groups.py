@@ -85,8 +85,9 @@ class Groups:
             """, (group_id,))
 
             stats = cur.fetchone()
+            stats = stats['cnt']
             if stats:
-                return int(stats['cnt'])
+                return int(stats)
             else:
                 return None
 
