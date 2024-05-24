@@ -1,6 +1,7 @@
 import datetime
 import sys
 import os
+import json
 
 from telethon import TelegramClient, events
 from loguru import logger
@@ -78,10 +79,15 @@ def send_order(channel_url, post_id, views_per_post):
     channel_name = get_channel_name(channel_url)
     # Service 1107 cannot manage requests with less than 100 views,
     # so we reroute request to a different service id
+    with open('services.json', 'r') as file:
+        file_data = json.load(file)
+        service_id_low = file_data['service_id_low']
+        service_id_large = file_data['service_id_large']
+
     if views_per_post > 200:
-        service_id = 4805  # Update this with the correct service ID from soc-proof.su if needed
+        service_id = service_id_low  # Update this with the correct service ID from soc-proof.su if needed
     else:
-        service_id = 4210
+        service_id = service_id_large
 
     api_key = '14b5170f4b9abff14a3a6719e05fe54e'  # Updated API key from your message
     post_link = f"{channel_url}/{post_id}"
