@@ -75,6 +75,22 @@ class Groups:
                 return None
 
     @classmethod
+    async def get_stats_by_group_id(cls, group_id):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                SELECT SUM(full_amount - left_amount) as cnt
+                FROM orders
+                WHERE last_update >= datetime('now', '-1 month')
+                AND group_id = ?
+            """, (group_id,))
+
+            stats = cur.fetchone()
+            if stats:
+                return int(stats['cnt'])
+            else:
+                return None
+
+    @classmethod
     async def add_group(cls, name, link, amount):
         with closing(db.cursor()) as cur:
             cur.execute("""
@@ -112,7 +128,7 @@ class Groups:
                 WHERE id = ?
             """, (setup, group_id))
 
-    @classmethod
+    @classmethod  # ВАЖНО ОТМЕТИТЬ ЧТО ЭТО НЕ АСИНХРОНКА
     def drop_setups(cls):
         with closing(db.cursor()) as cur:
             cur.execute("""

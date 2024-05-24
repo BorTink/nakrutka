@@ -149,8 +149,11 @@ async def get_link(message: types.Message, state: FSMContext):
             await add_info_to_state(state, 'group_id', group.id)
 
             await state.set_state('В группе')
+            stats = await dal.Groups.get_stats_by_group_id(group.id)
             await message.answer(
-                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+                f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+                f'За последний месяц накручено - {stats} просмотров',
                 reply_markup=kb.group
             )
             break
@@ -184,6 +187,23 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state('Новое значение накрутки')
 
 
+@dp.callback_query_handler(state='В группе', text='Переключить статус накрутки')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+    await dal.Groups.update_auto_orders_by_id(group_id=group_id, auto_orders=0 if group.auto_orders else 1)
+
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+    stats = await dal.Groups.get_stats_by_group_id(group_id)
+    await callback.message.answer(
+        f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+        f'За последний месяц накручено - {stats} просмотров',
+        reply_markup=kb.group
+    )
+
+
 @dp.message_handler(state='Новое значение накрутки')
 async def get_link(message: types.Message, state: FSMContext):
     if not message.text.isnumeric() or int(message.text) < 1000:
@@ -197,8 +217,11 @@ async def get_link(message: types.Message, state: FSMContext):
 
         group = await dal.Groups.get_group_by_id(group_id)
         await state.set_state('В группе')
+        stats = await dal.Groups.get_stats_by_group_id(group_id)
         await message.answer(
-            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+            f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+            f'За последний месяц накручено - {stats} просмотров',
             reply_markup=kb.group
         )
 
@@ -254,8 +277,11 @@ async def get_link(message: types.Message, state: FSMContext):
 
         group = await dal.Groups.get_group_by_id(group_id)
         await state.set_state('В группе')
+        stats = await dal.Groups.get_stats_by_group_id(group_id)
         await message.answer(
-            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+            f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+            f'За последний месяц накручено - {stats} просмотров',
             reply_markup=kb.group
         )
 
@@ -280,10 +306,27 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.answer(
             'Заказов пока нет.'
         )
+        stats = await dal.Groups.get_stats_by_group_id(group_id)
         await callback.message.answer(
-            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+            f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+            f'За последний месяц накручено - {stats} просмотров',
             reply_markup=kb.group
         )
+
+
+@dp.callback_query_handler(state='В заказах', text='Вернуться к группе')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state('В группе')
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+    stats = await dal.Groups.get_stats_by_group_id(group_id)
+    await callback.message.answer(
+        f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+        f'За последний месяц накручено - {stats} просмотров',
+        reply_markup=kb.group
+    )
 
 
 @dp.callback_query_handler(state='В заказах', text=['Отключить накрутку в заказе', 'Включить обратно накрутку в заказе'])
@@ -319,8 +362,11 @@ async def get_link(message: types.Message, state: FSMContext):
             )
 
             await state.set_state('В группе')
+            stats = await dal.Groups.get_stats_by_group_id(group_id)
             await message.answer(
-                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+                f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+                f'За последний месяц накручено - {stats} просмотров',
                 reply_markup=kb.group
             )
 
@@ -334,7 +380,10 @@ async def get_link(message: types.Message, state: FSMContext):
             )
 
             await state.set_state('В группе')
+            stats = await dal.Groups.get_stats_by_group_id(group_id)
             await message.answer(
-                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров',
+                f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+                f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+                f'За последний месяц накручено - {stats} просмотров',
                 reply_markup=kb.group
             )
