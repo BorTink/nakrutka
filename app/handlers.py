@@ -292,7 +292,7 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     orders = await dal.Orders.get_orders_list_by_group_id(group_id)
     if orders:
         text = 'Список заказов: \n'
-        for order in orders:
+        for order in orders: # TODO: оптимизировать текст и вывод постов (если слишком много)
             text += (
                 f'{order.post_id} | Всего для накрутки: {order.full_amount} | Осталось накрутить: {order.left_amount} | '
                 f'Статус: {"остановлено" if order.stopped else "окончено" if order.completed else "в процессе"}\n')

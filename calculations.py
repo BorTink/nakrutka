@@ -75,23 +75,30 @@ def get_channel_name(channel_url):
     return channel_url.split('/')[-1]
 
 
-def send_order(channel_url, post_id, views_per_post):
+def send_order(channel_url, post_id, views_per_post, views_left):
     channel_name = get_channel_name(channel_url)
     # Service 1107 cannot manage requests with less than 100 views,
     # so we reroute request to a different service id
     with open('services.json', 'r') as file:
         file_data = json.load(file)
-        service_id_low = file_data['service_id_low']
-        service_id_large = file_data['service_id_large']
 
     if views_per_post > 200:
-        service_id = service_id_low  # Update this with the correct service ID from soc-proof.su if needed
-    else:
-        service_id = service_id_large
+        service_id = file_data['service_id_higher_than_200']
+        api_key = file_data['api_key_higher_than_200']
+        service_url = file_data['url_higher_than_200']
 
-    api_key = '14b5170f4b9abff14a3a6719e05fe54e'  # Updated API key from your message
+    elif 100 <= views_per_post <= 200 or views_left > 3500:
+        service_id = file_data['service_id_100_200']
+        api_key = file_data['api_key_100_200']
+        service_url = file_data['url_100_200']
+
+    else:
+        service_id = file_data['service_id_lower_than_100']
+        api_key = file_data['api_key_lower_than_100']
+        service_url = file_data['url_lower_than_100']
+
     post_link = f"{channel_url}/{post_id}"
-    order_url = f"https://partner.soc-proof.su/api/v2?action=add&service={service_id}&link={post_link}&quantity={views_per_post}&key={api_key}"
+    order_url = f"{service_url}/api/v2?action=add&service={service_id}&link={post_link}&quantity={views_per_post}&key={api_key}"
     response = requests.post(order_url)  # Updated to use POST as specified in the PDF
     logger.info(f"Order placed for {views_per_post} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
     return response.json()
@@ -127,7 +134,7 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
 
         await dal.Orders.update_hour_by_id(order_id=post_id, hour=hour + 1)
 
-        send_order(channel_url, post_id, views)  # Place the order
+        send_order(channel_url, post_id, views, do_order.left_amount)  # Place the order
         logger.info(f"Order for hour {hour + 1} is placed.")
 
         left_amount = int(do_order.left_amount) - int(views)
