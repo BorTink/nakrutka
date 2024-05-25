@@ -129,6 +129,16 @@ class Groups:
                 WHERE id = ?
             """, (setup, group_id))
 
+    @classmethod
+    async def delete_by_id(cls, group_id):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                    UPDATE groups
+                    SET deleted = 1,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                    WHERE id = ?
+                """, (group_id, ))
+
     @classmethod  # ВАЖНО ОТМЕТИТЬ ЧТО ЭТО НЕ АСИНХРОНКА
     def drop_setups(cls):
         with closing(db.cursor()) as cur:

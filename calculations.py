@@ -158,8 +158,12 @@ async def setup_event_listener(channel_url, group_id):
         else:
             logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
-    channel = await client.get_entity(channel_url)
-    client.add_event_handler(new_message_handler, events.NewMessage(chats=channel))
+    try:
+        channel = await client.get_entity(channel_url)
+        client.add_event_handler(new_message_handler, events.NewMessage(chats=channel))
+    except Exception:
+        logger.error(f'Группы {channel_url} не существует. Удаляем группу')
+        await dal.Groups.delete_by_id(group_id=group_id)
 
 
 async def start_post_views_increasing(channel_url, post_id, views, cur_hour):
