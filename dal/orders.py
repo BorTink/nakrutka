@@ -75,6 +75,21 @@ class Orders:
             return [Order(**res) for res in orders]
 
     @classmethod
+    async def get_not_completed_orders_list_by_group_id(cls, group_id):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                        SELECT *
+                        FROM orders
+                        WHERE order_deleted == 0
+                        AND completed = 0
+                        AND group_id = ?
+                        ORDER BY last_update DESC
+                    """, (group_id,))
+
+            orders = cur.fetchall()
+            return [Order(**res) for res in orders]
+
+    @classmethod
     async def get_order_by_id(cls, order_id):
         with closing(db.cursor()) as cur:
             cur.execute("""

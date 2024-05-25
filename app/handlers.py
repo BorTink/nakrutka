@@ -289,7 +289,7 @@ async def get_link(message: types.Message, state: FSMContext):
 @dp.callback_query_handler(state='В группе', text='Получить список постов')
 async def add_group(callback: types.CallbackQuery, state: FSMContext):
     group_id = await get_info_from_state(state, 'group_id')
-    orders = await dal.Orders.get_orders_list_by_group_id(group_id)
+    orders = await dal.Orders.get_not_completed_orders_list_by_group_id(group_id)
     if orders:
         text = 'Список заказов: \n'
         for order in orders: # TODO: оптимизировать текст и вывод постов (если слишком много)

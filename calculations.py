@@ -191,7 +191,7 @@ async def start_backend():
 
             elif any([
                 order.started == 0,
-                order.completed == 0 and
+                order.completed == 0 and order.stopped == 0 and
                 (datetime.datetime.utcnow() - order.last_update) > datetime.timedelta(seconds=first_hour_wait + 300)
             ]):
                 logger.info(f'Doing order - {order.group_link}/{order.post_id}')
