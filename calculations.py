@@ -115,7 +115,7 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
         elif first_order:
             first_order = False
         else:
-            # On second order wait for 3900 seconds (1 hour 5 minutes) to correct TgStats spikes
+            # On second order wait for 4200 seconds (1 hour 10 minutes) to correct TgStats spikes
             await asyncio.sleep(second_hour_wait)
             second_order = False
 
@@ -147,14 +147,14 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
         hour += 1
 
 
-async def setup_event_listener(channel_url, views_final, group_id):
+async def setup_event_listener(channel_url, group_id):
     async def new_message_handler(event):
         group = await dal.Groups.get_group_by_id(group_id=group_id)
         if group.deleted:
             client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
         elif group.auto_orders == 1:
-            await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=views_final)
-            await start_post_views_increasing(channel_url, event.message.id, views_final, cur_hour=0)
+            await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
+            await start_post_views_increasing(channel_url, event.message.id, group.amount, cur_hour=0)
         else:
             logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
@@ -180,9 +180,8 @@ async def start_backend():
 
             channel_url = group.link
             group_id = group.id
-            views_final = group.amount
 
-            asyncio.create_task(setup_event_listener(channel_url, views_final, group_id))
+            asyncio.create_task(setup_event_listener(channel_url, group_id))
             await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
 
         orders = await dal.Orders.get_orders_list()
@@ -197,7 +196,7 @@ async def start_backend():
             ]):
                 logger.info(f'Doing order - {order.group_link}/{order.post_id}')
                 channel_url = order.group_link
-                views_final = order.left_amount
+                views_final = order.full_amount
 
                 asyncio.create_task(start_post_views_increasing(channel_url, order.post_id, views_final, order.hour))
 
