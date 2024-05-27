@@ -154,7 +154,9 @@ async def setup_event_listener(channel_url, group_id):
             client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
         elif group.auto_orders == 1:
             await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
-            await start_post_views_increasing(channel_url, event.message.id, group.amount, cur_hour=0)
+            await start_post_views_increasing(
+                channel_url, event.message.id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
+            )
         else:
             logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
@@ -166,8 +168,8 @@ async def setup_event_listener(channel_url, group_id):
         await dal.Groups.delete_by_id(group_id=group_id)
 
 
-async def start_post_views_increasing(channel_url, post_id, views, cur_hour):
-    post_time = datetime.datetime.now().astimezone().hour
+async def start_post_views_increasing(channel_url, post_id, views, cur_hour, post_time):
+    post_time = post_time.astimezone().hour
     distributions = calculate_view_distribution(post_time, views, cur_hour)
     await distribute_views_over_periods(channel_url, post_id, distributions, hour=cur_hour)
 
@@ -202,7 +204,11 @@ async def start_backend():
                 channel_url = order.group_link
                 views_final = order.full_amount
 
-                asyncio.create_task(start_post_views_increasing(channel_url, order.post_id, views_final, order.hour))
+                asyncio.create_task(
+                    start_post_views_increasing(
+                        channel_url, order.post_id, views_final, order.hour, order.created_date
+                    )
+                )
 
         await asyncio.sleep(5)
 

@@ -16,6 +16,7 @@ class Order(BaseModel):
     order_deleted: int
 
     last_update: datetime
+    created_date: datetime
 
 
 class OrderWithGroupInfo(BaseModel):
@@ -32,5 +33,6 @@ class OrderWithGroupInfo(BaseModel):
     order_deleted: int
 
     last_update: datetime
+    created_date: datetime
 
     group_link: str

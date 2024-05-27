@@ -26,6 +26,7 @@ class Orders:
                 stopped INTEGER DEFAULT 0,
                 order_deleted INTEGER DEFAULT 0,
                 last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
                 FOREIGN KEY (group_id) REFERENCES groups(id)
                 )
