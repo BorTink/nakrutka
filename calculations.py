@@ -19,6 +19,7 @@ client = TelegramClient('sessionTestAnton', api_id, api_hash)
 first_hour_wait = 3600
 second_hour_wait = 4200
 
+
 def calculate_view_distribution(post_hour, total_views, cur_hour):
     base_distribution = np.array([
         1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
@@ -34,19 +35,21 @@ def calculate_view_distribution(post_hour, total_views, cur_hour):
         0.7, 0.9, 0.7, 0.6, 0.5, 0.4, 0.3, 0.15, 0.11, 0.1, 0.2, 0.05,
         0.04, 0.04])
 
-    if post_hour >= 21 or post_hour < 7:
-        if post_hour < 10:
-            post_hour += 24
-        post_hour -= 21
-
-        night_distribution_main[post_hour] = night_distribution[post_hour]
-        night_distribution = night_distribution_main[post_hour:]
-        rand = np.random.choice([0.03, 0.04, 0.05], 72 - len(night_distribution))
-        full_distribution = np.concatenate((
-            night_distribution,
-            rand
-        ))
-    else:
+    # ВРЕМЕННО ВЫКЛЮЧИЛИ НОЧНУЮ ДИСТРИБУЦИЮ
+    # if post_hour >= 21 or post_hour < 7:
+    #     if post_hour < 10:
+    #         post_hour += 24
+    #     post_hour -= 21
+    #
+    #     night_distribution_main[post_hour] = night_distribution[post_hour]
+    #     night_distribution = night_distribution_main[post_hour:]
+    #     rand = np.random.choice([0.03, 0.04, 0.05], 72 - len(night_distribution))
+    #     full_distribution = np.concatenate((
+    #         night_distribution,
+    #         rand
+    #     ))
+    # else:
+    if True:
         rand = np.random.choice([0.03, 0.04, 0.05], 72 - len(base_distribution))
         full_distribution = np.concatenate((
             base_distribution,
