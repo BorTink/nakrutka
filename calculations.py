@@ -78,19 +78,24 @@ def get_channel_name(channel_url):
     return channel_url.split('/')[-1]
 
 
-def send_order(channel_url, post_id, views_per_post, views_left):
+def send_order(channel_url, post_id, order_views, left_amount, full_amount):
     channel_name = get_channel_name(channel_url)
     # Service 1107 cannot manage requests with less than 100 views,
     # so we reroute request to a different service id
     with open('services.json', 'r') as file:
         file_data = json.load(file)
 
-    if views_per_post > 200:
+    if full_amount < 3500:
+        service_id = file_data['service_id_lower_than_100']
+        api_key = file_data['api_key_lower_than_100']
+        service_url = file_data['url_lower_than_100']
+
+    elif order_views > 200:
         service_id = file_data['service_id_higher_than_200']
         api_key = file_data['api_key_higher_than_200']
         service_url = file_data['url_higher_than_200']
 
-    elif 100 <= views_per_post <= 200 or views_left > 3500:
+    elif 100 <= order_views <= 200 or left_amount > 3500:
         service_id = file_data['service_id_100_200']
         api_key = file_data['api_key_100_200']
         service_url = file_data['url_100_200']
@@ -101,9 +106,9 @@ def send_order(channel_url, post_id, views_per_post, views_left):
         service_url = file_data['url_lower_than_100']
 
     post_link = f"{channel_url}/{post_id}"
-    order_url = f"{service_url}/api/v2?action=add&service={service_id}&link={post_link}&quantity={views_per_post}&key={api_key}"
+    order_url = f"{service_url}/api/v2?action=add&service={service_id}&link={post_link}&quantity={order_views}&key={api_key}"
     response = requests.post(order_url)  # Updated to use POST as specified in the PDF
-    logger.info(f"Order placed for {views_per_post} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
+    logger.info(f"Order placed for {order_views} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
     return response.json()
 
 
@@ -137,7 +142,7 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
 
         await dal.Orders.update_hour_by_id(order_id=post_id, hour=hour + 1)
 
-        send_order(channel_url, post_id, views, do_order.left_amount)  # Place the order
+        send_order(channel_url, post_id, views, do_order.left_amount, do_order.full_amount)  # Place the order
         logger.info(f"Order for hour {hour + 1} is placed.")
 
         left_amount = int(do_order.left_amount) - int(views)
