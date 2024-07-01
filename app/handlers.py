@@ -300,6 +300,33 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
         )
 
 
+@dp.callback_query_handler(state='В группе', text='Отключить накрутку')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+    stats = await dal.Groups.get_stats_by_group_id(group_id)
+
+    orders = await dal.Orders.get_not_completed_orders_list_by_group_id(group_id)
+    if orders:
+        for order in orders:
+            await dal.Orders.update_stopped_by_id(order_id=order.post_id, stopped=1)
+
+        await callback.message.answer(
+            'Накрутка на все заказы была остановлена'
+        )
+    else:
+        await callback.message.answer(
+            'У этой группы нет незавершенных заказов'
+        )
+
+    await callback.message.answer(
+        f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+        f'За последний месяц накручено - {stats} просмотров',
+        reply_markup=kb.group
+    )
+
+
 @dp.callback_query_handler(state='В заказах', text='Вернуться к группе')
 async def add_group(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state('В группе')

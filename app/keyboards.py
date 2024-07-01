@@ -29,7 +29,10 @@ group_3 = InlineKeyboardButton(
 group_4 = InlineKeyboardButton(
     'Переключить статус накрутки', callback_data='Переключить статус накрутки'
 )
-group.add(group_1).add(group_2).add(group_3).add(group_4)
+group_5 = InlineKeyboardButton(
+    'Отключить накрутку на все существующие заказы', callback_data='Отключить накрутку'
+)
+group.add(group_1).add(group_2).add(group_3).add(group_4).add(group_5)
 
 
 orders = InlineKeyboardMarkup()
