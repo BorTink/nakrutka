@@ -15,7 +15,7 @@ start.add(start_1).add(start_2)
 
 start_without_groups = InlineKeyboardMarkup()
 start_without_groups.add(start_1)
-
+# 1
 group = InlineKeyboardMarkup()
 group_1 = InlineKeyboardButton(
     'Поменять кол-во просмотров на новые посты', callback_data='Поменять просмотры'
