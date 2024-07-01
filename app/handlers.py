@@ -87,17 +87,12 @@ async def get_link(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state='Кол-во накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric() or int(message.text) < 1000:
-        await message.answer(
-            'Введите число не менее 1000'
-        )
-    else:
-        await add_info_to_state(state, 'amount', int(message.text))
+    await add_info_to_state(state, 'amount', int(message.text))
 
-        await message.answer(
-            'Введите название этой группы (не обязательно актуальное, это нужно для отображения в боте)'
-        )
-        await state.set_state('Название группы')
+    await message.answer(
+        'Введите название этой группы (не обязательно актуальное, это нужно для отображения в боте)'
+    )
+    await state.set_state('Название группы')
 
 
 @dp.message_handler(state='Название группы')
@@ -206,24 +201,19 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(state='Новое значение накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric() or int(message.text) < 1000:
-        await message.answer(
-            'Введите число не менее 1000'
-        )
-    else:
-        group_id = await get_info_from_state(state, 'group_id')
-        await dal.Groups.update_amount_by_id(group_id=group_id, amount=int(message.text))
-        await message.answer('Кол-во было успешно обновлено.')
+    group_id = await get_info_from_state(state, 'group_id')
+    await dal.Groups.update_amount_by_id(group_id=group_id, amount=int(message.text))
+    await message.answer('Кол-во было успешно обновлено.')
 
-        group = await dal.Groups.get_group_by_id(group_id)
-        await state.set_state('В группе')
-        stats = await dal.Groups.get_stats_by_group_id(group_id)
-        await message.answer(
-            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
-            f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
-            f'За последний месяц накручено - {stats} просмотров',
-            reply_markup=kb.group
-        )
+    group = await dal.Groups.get_group_by_id(group_id)
+    await state.set_state('В группе')
+    stats = await dal.Groups.get_stats_by_group_id(group_id)
+    await message.answer(
+        f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+        f'За последний месяц накручено - {stats} просмотров',
+        reply_markup=kb.group
+    )
 
 
 @dp.callback_query_handler(state='В группе', text='Накрутить старый пост')
@@ -260,30 +250,25 @@ async def get_link(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state='Старый пост - кол-во накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric() or int(message.text) < 1000:
-        await message.answer(
-            'Введите число не менее 1000'
-        )
-    else:
-        group_id = await get_info_from_state(state, 'group_id')
-        post_id = await get_info_from_state(state, 'post_id')
-        amount = int(message.text)
+    group_id = await get_info_from_state(state, 'group_id')
+    post_id = await get_info_from_state(state, 'post_id')
+    amount = int(message.text)
 
-        await dal.Orders.add_order(group_id, post_id, amount, stopped=1)
+    await dal.Orders.add_order(group_id, post_id, amount, stopped=1)
 
-        await message.answer(
-            'Ордер был добавлен'
-        )
+    await message.answer(
+        'Ордер был добавлен'
+    )
 
-        group = await dal.Groups.get_group_by_id(group_id)
-        await state.set_state('В группе')
-        stats = await dal.Groups.get_stats_by_group_id(group_id)
-        await message.answer(
-            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
-            f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
-            f'За последний месяц накручено - {stats} просмотров',
-            reply_markup=kb.group
-        )
+    group = await dal.Groups.get_group_by_id(group_id)
+    await state.set_state('В группе')
+    stats = await dal.Groups.get_stats_by_group_id(group_id)
+    await message.answer(
+        f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+        f'За последний месяц накручено - {stats} просмотров',
+        reply_markup=kb.group
+    )
 
 
 @dp.callback_query_handler(state='В группе', text='Получить список постов')
