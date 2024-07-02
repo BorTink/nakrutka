@@ -14,7 +14,7 @@ import dal
 # Telegram API credentials
 api_id = 19418891
 api_hash = '9dc4be6c707b19578aa61328972af119'
-client = TelegramClient('sessionTestAnton', api_id, api_hash)
+client = TelegramClient('session_Danek', api_id, api_hash)
 
 first_hour_wait = 3600
 second_hour_wait = 4200
@@ -168,8 +168,6 @@ async def setup_event_listener(channel_url, group_id):
             await start_post_views_increasing(
                 channel_url, event.message.id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
             )
-
-            logger.info(f'Заказ на пост {event.message.id} в группе {group.name} был добавлен')
         else:
             logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
