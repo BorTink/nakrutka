@@ -161,11 +161,15 @@ async def setup_event_listener(channel_url, group_id):
         if group.deleted:
             client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
         elif group.auto_orders == 1:
+            logger.info(f'Добавляем заказ на пост {event.message.id} в группе {group.name}')
+
             await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
             await dal.Orders.update_started_by_id(order_id=event.message.id, started=1)
             await start_post_views_increasing(
                 channel_url, event.message.id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
             )
+
+            logger.info(f'Заказ на пост {event.message.id} в группе {group.name} был добавлен')
         else:
             logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
