@@ -1,5 +1,3 @@
-import sqlite3 as sq
-
 import dal
 from schemas import Order, OrderWithGroupInfo
 from contextlib import closing
