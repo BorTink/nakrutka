@@ -63,7 +63,7 @@ class Subs:
             return [SubWithGroupInfo(**res) for res in subs]
 
     @classmethod
-    async def get_sub_by_id(cls, group_id):
+    async def get_sub_by_group_id(cls, group_id):
         with closing(db.cursor()) as cur:
             cur.execute("""
                     SELECT *
@@ -90,7 +90,7 @@ class Subs:
             """, (group_id, amount, amount, minutes, subs_count))
 
     @classmethod
-    async def update_left_amount_by_id(cls, group_id, amount):
+    async def update_left_amount_by_group_id(cls, group_id, amount):
         with closing(db.cursor()) as cur:
             cur.execute("""
                 UPDATE subs
@@ -101,7 +101,7 @@ class Subs:
             """, (amount, group_id))
 
     @classmethod
-    async def update_completed_by_id(cls, group_id):
+    async def update_completed_by_group_id(cls, group_id):
         with closing(db.cursor()) as cur:
             cur.execute("""
                     UPDATE subs
@@ -112,7 +112,7 @@ class Subs:
                 """, (group_id,))
 
     @classmethod
-    async def update_stopped_by_id(cls, group_id, stopped):
+    async def update_stopped_by_group_id(cls, group_id, stopped):
         with closing(db.cursor()) as cur:
             cur.execute("""
                     UPDATE subs
@@ -123,7 +123,7 @@ class Subs:
                 """, (stopped, group_id))
 
     @classmethod
-    async def update_started_by_id(cls, group_id, started):
+    async def update_started_by_group_id(cls, group_id, started):
         with closing(db.cursor()) as cur:
             cur.execute("""
                     UPDATE subs
@@ -132,3 +132,16 @@ class Subs:
                     WHERE group_id = ?
                     AND completed = 0
                 """, (started, group_id))
+
+    @classmethod
+    async def update_sub_info_by_group_id(cls, group_id, full_amount, minutes, subs_count):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                        UPDATE subs
+                        SET full_amount = ?,
+                        minutes = ?,
+                        subs_count = ?,
+                        last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                        WHERE group_id = ?
+                        AND completed = 0
+                    """, (full_amount, minutes, subs_count, group_id))

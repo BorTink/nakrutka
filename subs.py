@@ -27,30 +27,34 @@ def send_sub(channel_url, subs_count):
     with open('services.json', 'r') as file:
         file_data = json.load(file)
 
-    service_id = file_data['subscribers']
-    api_key = file_data['subscribers']
-    service_url = file_data['subscribers']
+    service_id = file_data['subscribers_service_id']
+    api_key = file_data['subscribers_api_key']
+    service_url = file_data['subscribers_url']
 
-    sub_url = f"{service_url}/api/v2?action=add&service={service_id}&link={channel_url}&quantity={subs_count}&key={api_key}"
+    sub_url = f"{service_url}/api/v2?action=add&service={service_id}&username={channel_url}&min={subs_count-1}&max={subs_count}&key={api_key}"
     response = requests.post(sub_url)  # Updated to use POST as specified in the PDF
+    response_json = response.json()
+
     logger.info(f"Order placed for {subs_count} subs in channel '{channel_name}' at {datetime.datetime.now().time()}")
-    return response.json()
+    return response_json
 
 
 async def start_post_views_increasing(channel_url, group_id):
+    first_start = True
     while True:
-        do_sub = await dal.Subs.get_sub_by_id(group_id=group_id)
+        do_sub = await dal.Subs.get_sub_by_group_id(group_id=group_id)
         group = await dal.Groups.get_group_by_id(group_id=group_id)
 
-        if do_sub.left_amount != do_sub.full_amount:
+        if not first_start:
             await asyncio.sleep(do_sub.minutes * 60)
+        first_start = False
 
         if do_sub.started == 0:
-            await dal.Subs.update_started_by_id(group_id=group_id, started=1)
+            await dal.Subs.update_started_by_group_id(group_id=group_id, started=1)
 
         while do_sub.stopped == 1 and do_sub.completed == 0 and do_sub.sub_deleted == 0:
             await asyncio.sleep(120)
-            do_sub = await dal.Subs.get_sub_by_id(group_id=group_id)
+            do_sub = await dal.Subs.get_sub_by_group_id(group_id=group_id)
 
         if do_sub.completed == 1:
             logger.info(f'Order for subs in group {group.name} is completed')
@@ -60,15 +64,15 @@ async def start_post_views_increasing(channel_url, group_id):
             logger.info(f'Order for subs in group {group.name} is deleted')
             break
 
-        if do_sub.sub_count > do_sub.left_amount:
-            do_sub.sub_count = do_sub.left_amount
+        if do_sub.subs_count > do_sub.left_amount:
+            do_sub.subs_count = do_sub.left_amount
 
-        send_sub(channel_url, do_sub.sub_count)  # Place the sub
-        left_amount = int(do_sub.left_amount) - int(do_sub.sub_count)
+        send_sub(channel_url, do_sub.subs_count)  # Place the sub
+        left_amount = int(do_sub.left_amount) - int(do_sub.subs_count)
 
-        await dal.Subs.update_left_amount_by_id(group_id=group_id, amount=left_amount)
+        await dal.Subs.update_left_amount_by_group_id(group_id=group_id, amount=left_amount)
         if left_amount <= 0:
-            await dal.Subs.update_completed_by_id(group_id=group_id)
+            await dal.Subs.update_completed_by_group_id(group_id=group_id)
             logger.info(f'Order for subs in group {group.name} is completed')
             break
 
@@ -81,21 +85,20 @@ async def start_backend():
     while True:
         subs = await dal.Subs.get_subs_list()
         for sub in subs:
-            if sub.left_views == 0:
-                await dal.Subs.update_completed_by_id(group_id=sub.group_id)
+            if sub.left_amount <= 0:
+                await dal.Subs.update_completed_by_group_id(group_id=sub.group_id)
 
             elif any([
                 sub.started == 0,
                 sub.completed == 0 and sub.stopped == 0 and
-                (datetime.datetime.utcnow() - sub.last_update) > datetime.timedelta(seconds=sub.minutes * 60 + 1000)
+                (datetime.datetime.utcnow() - sub.last_update) > datetime.timedelta(seconds=sub.minutes * 60 + 2)
             ]):
-                logger.info(f'Doing sub - {sub.group_link}/{sub.post_id}')
+                logger.info(f'Doing subs for - {sub.group_link}')
                 channel_url = sub.group_link
-                subs_count = sub.left
 
                 asyncio.create_task(
                     start_post_views_increasing(
-                        channel_url, subs_count
+                        channel_url=channel_url, group_id=sub.group_id
                     )
                 )
 
