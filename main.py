@@ -7,6 +7,7 @@ from app.handlers import dp
 async def on_startup(_):
     await dal.Groups.create_db()
     await dal.Orders.create_db()
+    await dal.Subs.create_db()
     print('Бот успешно запущен!')
 
 if __name__ == '__main__':

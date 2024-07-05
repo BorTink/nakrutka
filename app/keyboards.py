@@ -32,7 +32,10 @@ group_4 = InlineKeyboardButton(
 group_5 = InlineKeyboardButton(
     'Отключить накрутку на все существующие заказы', callback_data='Отключить накрутку'
 )
-group.add(group_1).add(group_2).add(group_3).add(group_4).add(group_5)
+group_6 = InlineKeyboardButton(
+    'Перейти к накрутке подписчиков', callback_data='Накрутка подписчиков'
+)
+group.add(group_1).add(group_2).add(group_3).add(group_4).add(group_6)
 
 
 orders = InlineKeyboardMarkup()
@@ -47,3 +50,20 @@ orders_3 = InlineKeyboardButton(
 )
 orders.add(orders_1).add(orders_2).add(orders_3)
 
+subs_none = InlineKeyboardMarkup()
+subs_menu = InlineKeyboardButton(
+    'Вернуться к группе', callback_data='Вернуться к группе'
+)
+subs_none_1 = InlineKeyboardButton(
+    'Добавить накрутку', callback_data='Добавить накрутку'
+)
+subs_none.add(subs_none_1).add(subs_menu)
+
+subs_going = InlineKeyboardMarkup()
+subs_going_1 = InlineKeyboardButton(
+    'Изменить параметры накрутки', callback_data='Изменить параметры накрутки'
+)
+subs_going_2 = InlineKeyboardButton(
+    'Переключить статус подписчиков', callback_data='Переключить статус подписчиков'
+)
+subs_going.add(subs_going_1).add(subs_going_2).add(subs_menu)

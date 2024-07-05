@@ -75,7 +75,7 @@ class Groups:
                 return None
 
     @classmethod
-    async def get_stats_by_group_id(cls, group_id):
+    async def get_views_stats_by_group_id(cls, group_id):
         with closing(db.cursor()) as cur:
             cur.execute("""
                 SELECT SUM(full_amount - left_amount) as cnt
@@ -83,6 +83,23 @@ class Groups:
                 WHERE last_update >= datetime('now', '-1 month')
                 AND group_id = ?
             """, (group_id,))
+
+            stats = cur.fetchone()
+            stats = stats['cnt']
+            if stats:
+                return int(stats)
+            else:
+                return None
+
+    @classmethod
+    async def get_subs_stats_by_group_id(cls, group_id):
+        with closing(db.cursor()) as cur:
+            cur.execute("""
+                    SELECT SUM(full_amount - left_amount) as cnt
+                    FROM subs
+                    WHERE last_update >= datetime('now', '-1 month')
+                    AND group_id = ?
+                """, (group_id,))
 
             stats = cur.fetchone()
             stats = stats['cnt']
