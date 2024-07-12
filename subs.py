@@ -31,8 +31,16 @@ def send_sub(channel_url, subs_count):
     api_key = file_data['subscribers_api_key']
     service_url = file_data['subscribers_url']
 
-    sub_url = f"{service_url}/api/v2?action=add&service={service_id}&username={channel_url}&min={subs_count-1}&max={subs_count}&key={api_key}"
-    response = requests.post(sub_url)  # Updated to use POST as specified in the PDF
+    payload = {
+        'key': api_key,
+        'action': 'add',
+        'service': service_id,
+        'link': channel_url,
+        'quantity': subs_count
+    }
+
+    sub_url = f"{service_url}/api/v2"
+    response = requests.post(sub_url, data=payload)
     response_json = response.json()
 
     logger.info(f"Order placed for {subs_count} subs in channel '{channel_name}' at {datetime.datetime.now().time()}")

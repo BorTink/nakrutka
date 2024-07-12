@@ -139,9 +139,10 @@ class Subs:
             cur.execute("""
                         UPDATE subs
                         SET full_amount = ?,
+                        left_amount = ?,
                         minutes = ?,
                         subs_count = ?,
                         last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                         WHERE group_id = ?
                         AND completed = 0
-                    """, (full_amount, minutes, subs_count, group_id))
+                    """, (full_amount, full_amount, minutes, subs_count, group_id))
