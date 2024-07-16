@@ -84,6 +84,7 @@ def send_order(channel_url, post_id, order_views, left_amount, full_amount):
     # so we reroute request to a different service id
     with open('services.json', 'r') as file:
         file_data = json.load(file)
+        logger.info('services.json was loaded')
 
     if full_amount < 3500:
         service_id = file_data['service_id_lower_than_100']
@@ -220,7 +221,7 @@ async def start_backend():
                     )
                 )
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(15)
 
 
 def drop_group_setups():
