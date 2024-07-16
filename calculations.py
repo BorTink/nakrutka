@@ -16,8 +16,8 @@ api_id = 19418891
 api_hash = '9dc4be6c707b19578aa61328972af119'
 client = TelegramClient('session_Danek', api_id, api_hash)
 
-first_hour_wait = 3600
-second_hour_wait = 4200
+first_hour_wait = 4200
+second_hour_wait = 3600
 
 
 def calculate_view_distribution(post_hour, total_views, cur_hour):
@@ -114,20 +114,12 @@ def send_order(channel_url, post_id, order_views, left_amount, full_amount):
 
 
 async def distribute_views_over_periods(channel_url, post_id, distributions, hour):
-    first_order = True
-    second_order = True
+    if hour == 0:
+        first_order = True
+    else:
+        first_order = False
 
     for views in distributions:
-        if not first_order and not second_order:
-            # Wait for 3600 seconds (1 hour) before placing the next order
-            await asyncio.sleep(first_hour_wait)
-        elif first_order:
-            first_order = False
-        else:
-            # On second order wait for 4200 seconds (1 hour 10 minutes) to correct TgStats spikes
-            await asyncio.sleep(second_hour_wait)
-            second_order = False
-
         do_order = await dal.Orders.get_order_by_id(order_id=post_id)
 
         if do_order.started == 0:
@@ -153,6 +145,12 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
             break
 
         hour += 1
+
+        if first_order:
+            await asyncio.sleep(first_hour_wait)
+            first_order = False
+        else:
+            await asyncio.sleep(second_hour_wait)
 
 
 async def setup_event_listener(channel_url, group_id):
