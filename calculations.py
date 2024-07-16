@@ -108,8 +108,9 @@ def send_order(channel_url, post_id, order_views, left_amount, full_amount):
     post_link = f"{channel_url}/{post_id}"
     order_url = f"{service_url}/api/v2?action=add&service={service_id}&link={post_link}&quantity={order_views}&key={api_key}"
     response = requests.post(order_url)  # Updated to use POST as specified in the PDF
+    response_json = response.json()
     logger.info(f"Order placed for {order_views} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
-    return response.json()
+    return response_json
 
 
 async def distribute_views_over_periods(channel_url, post_id, distributions, hour):
@@ -132,9 +133,8 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
         if do_order.started == 0:
             await dal.Orders.update_started_by_id(order_id=post_id, started=1)
 
-        while do_order.stopped == 1 and do_order.completed == 0 and do_order.order_deleted == 0:
-            await asyncio.sleep(10)
-            do_order = await dal.Orders.get_order_by_id(order_id=post_id)
+        if do_order.stopped == 1 and do_order.completed == 0 and do_order.order_deleted == 0:
+            break
 
         if do_order.completed == 1 or do_order.order_deleted == 1:
             logger.info(f'Order with post_id = {post_id} is completed or deleted')
