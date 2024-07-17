@@ -20,7 +20,7 @@ first_hour_wait = 4200
 second_hour_wait = 3600
 
 
-def calculate_view_distribution(post_hour, total_views, cur_hour):
+async def calculate_view_distribution(post_hour, total_views, cur_hour):
     base_distribution = np.array([
         1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
         0.13, 0.11, 0.09, 0.06, 0.08, 0.06, 0.05, 0.04, 0.04])
@@ -72,14 +72,14 @@ def calculate_view_distribution(post_hour, total_views, cur_hour):
     return views_distribution[cur_hour:]
 
 
-def get_channel_name(channel_url):
+async def get_channel_name(channel_url):
     # Assuming the channel URL is in the format "https://t.me/channelname"
     # This splits the URL by '/' and returns the last part as the channel name
     return channel_url.split('/')[-1]
 
 
-def send_order(channel_url, post_id, order_views, left_amount, full_amount):
-    channel_name = get_channel_name(channel_url)
+async def send_order(channel_url, post_id, order_views, left_amount, full_amount):
+    channel_name = await get_channel_name(channel_url)
     # Service 1107 cannot manage requests with less than 100 views,
     # so we reroute request to a different service id
     with open('services.json', 'r') as file:
@@ -139,7 +139,7 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
 
         await dal.Orders.update_hour_by_id(order_id=post_id, hour=hour + 1)
 
-        send_order(channel_url, post_id, views, do_order.left_amount, do_order.full_amount)  # Place the order
+        await send_order(channel_url, post_id, views, do_order.left_amount, do_order.full_amount)  # Place the order
         logger.info(f"Накрутка на {hour + 1} час была создана.")
 
         left_amount = int(do_order.left_amount) - int(views)
