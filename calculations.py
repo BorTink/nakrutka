@@ -84,7 +84,6 @@ def send_order(channel_url, post_id, order_views, left_amount, full_amount):
     # so we reroute request to a different service id
     with open('services.json', 'r') as file:
         file_data = json.load(file)
-        logger.info('services.json was loaded')
 
     if full_amount < 3500:
         service_id = file_data['service_id_lower_than_100']
@@ -119,6 +118,10 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
         first_order = True
     else:
         first_order = False
+    if distributions.size == 0:
+        await dal.Orders.update_completed_by_id(order_id=post_id, completed=1)
+        logger.info(f'Ордер с post_id = {post_id} был завершен раньше времени')
+        await dal.Orders.update_left_amount_by_id(order_id=post_id, amount=0)
 
     for views in distributions:
         do_order = await dal.Orders.get_order_by_id(order_id=post_id)
@@ -130,19 +133,19 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
             break
 
         if do_order.completed == 1 or do_order.order_deleted == 1:
-            logger.info(f'Order with post_id = {post_id} is completed or deleted')
+            logger.info(f'Ордер с post_id = {post_id} был завершен или удален')
             break
 
         await dal.Orders.update_hour_by_id(order_id=post_id, hour=hour + 1)
 
         send_order(channel_url, post_id, views, do_order.left_amount, do_order.full_amount)  # Place the order
-        logger.info(f"Order for hour {hour + 1} is placed.")
+        logger.info(f"Накрутка на {hour + 1} час была создана.")
 
         left_amount = int(do_order.left_amount) - int(views)
         await dal.Orders.update_left_amount_by_id(order_id=post_id, amount=left_amount)
         if left_amount <= 0:
             await dal.Orders.update_completed_by_id(post_id, 1)
-            logger.info(f'Order with post_id = {post_id} is completed')
+            logger.info(f'Ордер с post_id = {post_id} был завершен')
             break
 
         hour += 1
@@ -181,7 +184,6 @@ async def setup_event_listener(channel_url, group_id):
 async def start_post_views_increasing(channel_url, post_id, views, cur_hour, post_time):
     post_time = post_time.astimezone().hour
     distributions = calculate_view_distribution(post_time, views, cur_hour)
-    logger.info(f'Distributions for {channel_url} and post_id {post_id} were created')
     await distribute_views_over_periods(channel_url, post_id, distributions, hour=cur_hour)
 
 
@@ -193,7 +195,7 @@ async def start_backend():
     while True:
         groups = await dal.Groups.get_not_setup_groups_list()
         for group in groups:
-            logger.info(f'Check group - {group.name}')
+            logger.info(f'Проверяется группа - {group.name}')
 
             channel_url = group.link
             group_id = group.id
@@ -211,7 +213,7 @@ async def start_backend():
                 order.completed == 0 and order.stopped == 0 and
                 (datetime.datetime.utcnow() - order.last_update) > datetime.timedelta(seconds=first_hour_wait + 1000)
             ]):
-                logger.info(f'Doing order - {order.group_link}/{order.post_id}')
+                logger.info(f'Совершается ордер - {order.group_link}/{order.post_id}')
                 channel_url = order.group_link
                 views_final = order.full_amount
 
