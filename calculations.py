@@ -130,6 +130,7 @@ async def distribute_views_over_periods(channel_url, post_id, distributions, hou
             await dal.Orders.update_started_by_id(order_id=post_id, started=1)
 
         if do_order.stopped == 1 and do_order.completed == 0 and do_order.order_deleted == 0:
+            logger.info(f'Ордер с post_id = {post_id} был остановлен')
             break
 
         if do_order.completed == 1 or do_order.order_deleted == 1:
