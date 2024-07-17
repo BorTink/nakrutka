@@ -184,7 +184,7 @@ async def setup_event_listener(channel_url, group_id):
 
 async def start_post_views_increasing(channel_url, post_id, views, cur_hour, post_time):
     post_time = post_time.astimezone().hour
-    distributions = calculate_view_distribution(post_time, views, cur_hour)
+    distributions = await calculate_view_distribution(post_time, views, cur_hour)
     await distribute_views_over_periods(channel_url, post_id, distributions, hour=cur_hour)
 
 
