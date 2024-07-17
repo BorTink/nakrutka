@@ -118,17 +118,12 @@ async def start_backend():
         await asyncio.sleep(random.randrange(15, 35))
 
 
-def drop_group_setups():
-    dal.Groups.drop_setups()
-
-
 def main():
     logger.info('Запускаем программу для накрутки подписчиков...')
     try:
         with client:
             client.loop.run_until_complete(start_backend())
     except KeyboardInterrupt:
-        drop_group_setups()
         logger.info(f'Программа прекратила работу.')
         try:
             sys.exit(130)
@@ -139,7 +134,6 @@ def main():
         time.sleep(10.5)
     except Exception as exc:
         logger.info(f'Программа прекратила работу. Ошибка - {type(exc)}')
-        drop_group_setups()
         try:
             sys.exit(130)
         except SystemExit:
