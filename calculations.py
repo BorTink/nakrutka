@@ -3,6 +3,7 @@ import sys
 import os
 import json
 import time
+import random
 
 from telethon import TelegramClient, events
 from loguru import logger
@@ -115,40 +116,40 @@ async def send_order(channel_url, post_id, order_views, left_amount, full_amount
     return response_json
 
 
-async def distribute_views_over_periods(channel_url, post_id, distributions, hour):
+async def distribute_views_over_periods(channel_url, order_id, distributions, hour):
     if hour == 0:
         first_order = True
     else:
         first_order = False
     if distributions.size == 0:
-        await dal.Orders.update_completed_by_id(order_id=post_id, completed=1)
-        logger.info(f'Ордер с post_id = {post_id} был завершен раньше времени')
-        await dal.Orders.update_left_amount_by_id(order_id=post_id, amount=0)
+        await dal.Orders.update_completed_by_id(order_id=order_id, completed=1)
+        logger.info(f'Ордер с order_id = {order_id} был завершен раньше времени')
+        await dal.Orders.update_left_amount_by_id(order_id=order_id, amount=0)
 
     for views in distributions:
-        do_order = await dal.Orders.get_order_by_id(order_id=post_id)
-
-        if do_order.started == 0:
-            await dal.Orders.update_started_by_id(order_id=post_id, started=1)
+        do_order = await dal.Orders.get_order_by_id(order_id=order_id)
 
         if do_order.stopped == 1 and do_order.completed == 0 and do_order.order_deleted == 0:
-            logger.info(f'Ордер с post_id = {post_id} был остановлен')
+            logger.info(f'Ордер с order_id = {order_id} был остановлен')
             break
+
+        if do_order.started == 0:
+            await dal.Orders.update_started_by_id(order_id=order_id, started=1)
 
         if do_order.completed == 1 or do_order.order_deleted == 1:
-            logger.info(f'Ордер с post_id = {post_id} был завершен или удален')
+            logger.info(f'Ордер с order_id = {order_id} был завершен или удален')
             break
 
-        await dal.Orders.update_hour_by_id(order_id=post_id, hour=hour + 1)
+        await dal.Orders.update_hour_by_id(order_id=order_id, hour=hour + 1)
 
-        await send_order(channel_url, post_id, views, do_order.left_amount, do_order.full_amount)  # Place the order
+        await send_order(channel_url, do_order.post_id, views, do_order.left_amount, do_order.full_amount)
         logger.info(f"Накрутка на {hour + 1} час была создана.")
 
         left_amount = int(do_order.left_amount) - int(views)
-        await dal.Orders.update_left_amount_by_id(order_id=post_id, amount=left_amount)
+        await dal.Orders.update_left_amount_by_id(order_id=order_id, amount=left_amount)
         if left_amount <= 0:
-            await dal.Orders.update_completed_by_id(post_id, 1)
-            logger.info(f'Ордер с post_id = {post_id} был завершен')
+            await dal.Orders.update_completed_by_id(order_id=order_id, completed=1)
+            logger.info(f'Ордер с order_id = {order_id} был завершен')
             break
 
         hour += 1
@@ -168,10 +169,10 @@ async def setup_event_listener(channel_url, group_id):
         elif group.auto_orders == 1:
             logger.info(f'Добавляем заказ на пост {event.message.id} в группе {group.name}')
 
-            await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
-            await dal.Orders.update_started_by_id(order_id=event.message.id, started=1)
+            order_id = await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
+            await dal.Orders.update_started_by_id(order_id=order_id, started=1)
             await start_post_views_increasing(
-                channel_url, event.message.id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
+                channel_url, order_id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
             )
         else:
             logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
@@ -184,16 +185,16 @@ async def setup_event_listener(channel_url, group_id):
         await dal.Groups.delete_by_id(group_id=group_id)
 
 
-async def start_post_views_increasing(channel_url, post_id, views, cur_hour, post_time):
+async def start_post_views_increasing(channel_url, order_id, views, cur_hour, post_time):
     post_time = post_time.astimezone().hour
     distributions = await calculate_view_distribution(post_time, views, cur_hour)
-    await distribute_views_over_periods(channel_url, post_id, distributions, hour=cur_hour)
+    await distribute_views_over_periods(channel_url, order_id, distributions, hour=cur_hour)
 
 
 async def start_backend():
     await dal.Groups.create_db()
     await dal.Orders.create_db()
-    logger.info('Backend started')
+    logger.info('Программа для накрутки просмотров была запущена')
 
     while True:
         groups = await dal.Groups.get_not_setup_groups_list()
@@ -222,11 +223,11 @@ async def start_backend():
 
                 asyncio.create_task(
                     start_post_views_increasing(
-                        channel_url, order.post_id, views_final, order.hour, order.created_date
+                        channel_url, order.id, views_final, order.hour, order.created_date
                     )
                 )
 
-        await asyncio.sleep(15)
+        await asyncio.sleep(random.randrange(15, 35))
 
 
 def drop_group_setups():
@@ -234,7 +235,7 @@ def drop_group_setups():
 
 
 def main():
-    logger.info('Программа для накрутки просмотров была запущена')
+    logger.info('Запускаем программу для накрутки просмотров...')
     try:
         with client:
             client.loop.run_until_complete(start_backend())

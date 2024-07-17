@@ -93,7 +93,7 @@ async def start_post_views_increasing(channel_url, group_id):
 async def start_backend():
     await dal.Groups.create_db()
     await dal.Subs.create_db()
-    logger.info('Backend started')
+    logger.info('Программа для накрутки подписчиков была запущена')
 
     while True:
         subs = await dal.Subs.get_subs_list()
@@ -115,7 +115,7 @@ async def start_backend():
                     )
                 )
 
-        await asyncio.sleep(5)
+        await asyncio.sleep(random.randrange(15, 35))
 
 
 def drop_group_setups():
@@ -123,7 +123,7 @@ def drop_group_setups():
 
 
 def main():
-    logger.info('Программа для накрутки подписчиков была запущена')
+    logger.info('Запускаем программу для накрутки подписчиков...')
     try:
         with client:
             client.loop.run_until_complete(start_backend())

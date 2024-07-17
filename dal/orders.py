@@ -27,21 +27,6 @@ class Orders:
             """)
 
     @classmethod
-    async def get_not_started_orders_list(cls):
-        async with dal.Connection() as cur:
-            await cur.execute("""
-                SELECT orders.*, groups.link as group_link
-                FROM orders
-                JOIN groups ON groups.id = orders.group_id
-                WHERE order_deleted == 0
-                AND started == 0
-                ORDER BY last_update DESC
-            """)
-
-            orders = await cur.fetchall()
-            return [OrderWithGroupInfo(**res) for res in orders]
-
-    @classmethod
     async def get_orders_list(cls):
         async with dal.Connection() as cur:
             await cur.execute("""
@@ -91,9 +76,27 @@ class Orders:
                     SELECT *
                     FROM orders
                     WHERE order_deleted == 0
-                    AND post_id = ?
+                    AND id = ?
                     ORDER BY last_update DESC
                 """, (order_id,))
+
+            order = await cur.fetchone()
+            if order:
+                return Order(**order)
+            else:
+                return None
+
+    @classmethod
+    async def get_order_by_group_and_post(cls, group_id, post_id):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                        SELECT *
+                        FROM orders
+                        WHERE order_deleted == 0
+                        AND group_id = ?
+                        AND post_id = ?
+                        ORDER BY last_update DESC
+                    """, (group_id, post_id,))
 
             order = await cur.fetchone()
             if order:
@@ -107,7 +110,14 @@ class Orders:
             await cur.execute("""
                 INSERT INTO orders (group_id, post_id, full_amount, left_amount, stopped)
                 VALUES (?, ?, ?, ?, ?)
+                RETURNING id
             """, (group_id, post_id, amount, amount, stopped))
+            order_id = await cur.fetchone()
+            order_id = dict(order_id)
+            if order_id:
+                return int(order_id['id'])
+            else:
+                return None
 
     @classmethod
     async def update_left_amount_by_id(cls, order_id, amount):
@@ -116,7 +126,7 @@ class Orders:
                 UPDATE orders
                 SET left_amount = ?,
                 last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
-                WHERE post_id = ?
+                WHERE id = ?
             """, (amount, order_id))
 
     @classmethod
@@ -126,7 +136,7 @@ class Orders:
                     UPDATE orders
                     SET completed = ?,
                     last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
-                    WHERE post_id = ?
+                    WHERE id = ?
                 """, (completed, order_id))
 
     @classmethod
@@ -136,7 +146,7 @@ class Orders:
                     UPDATE orders
                     SET stopped = ?,
                     last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
-                    WHERE post_id = ?
+                    WHERE id = ?
                 """, (stopped, order_id))
 
     @classmethod
@@ -146,7 +156,7 @@ class Orders:
                     UPDATE orders
                     SET started = ?,
                     last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
-                    WHERE post_id = ?
+                    WHERE id = ?
                 """, (started, order_id))
 
     @classmethod
@@ -156,5 +166,5 @@ class Orders:
                     UPDATE orders
                     SET hour = ?,
                     last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
-                    WHERE post_id = ?
+                    WHERE id = ?
                 """, (hour, order_id))

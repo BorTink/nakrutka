@@ -330,7 +330,7 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     orders = await dal.Orders.get_not_completed_orders_list_by_group_id(group_id)
     if orders:
         for order in orders:
-            await dal.Orders.update_stopped_by_id(order_id=order.post_id, stopped=1)
+            await dal.Orders.update_stopped_by_id(order_id=order.id, stopped=1)
 
         await callback.message.answer(
             'Накрутка на все заказы была остановлена'
@@ -509,24 +509,23 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
         await add_info_to_state(state, 'stopped', 0)
 
     await callback.message.answer(
-        'Введите id заказа'
+        'Введите id поста'
     )
-    await state.set_state('Введите id заказа')
+    await state.set_state('Введите id поста')
 
 
-@dp.message_handler(state='Введите id заказа')
+@dp.message_handler(state='Введите id поста')
 async def get_link(message: types.Message, state: FSMContext):
     if not message.text.isnumeric():
         await message.answer(
             'Введите число'
         )
     else:
-        order_id = int(message.text)
-        this_order = await dal.Orders.get_order_by_id(order_id)
-
+        post_id = int(message.text)
         group_id = await get_info_from_state(state, 'group_id')
 
         group = await dal.Groups.get_group_by_id(group_id)
+        this_order = await dal.Orders.get_order_by_group_and_post(group_id=group_id, post_id=post_id)
 
         if not this_order:
             await message.answer(
@@ -548,8 +547,8 @@ async def get_link(message: types.Message, state: FSMContext):
 
         else:
             stopped = await get_info_from_state(state, 'stopped')
-            await dal.Orders.update_stopped_by_id(order_id=order_id, stopped=stopped)
-            text = f'Заказ c id = {order_id} был '
+            await dal.Orders.update_stopped_by_id(order_id=this_order.id, stopped=stopped)
+            text = f'Заказ c post_id = {post_id} был '
             text += 'возобновлен' if stopped == 0 else 'остановлен'
             await message.answer(
                 text
