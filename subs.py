@@ -2,11 +2,14 @@ import datetime
 import sys
 import os
 import json
+import random
+import time
 
 from telethon import TelegramClient
 from loguru import logger
 import asyncio
 import requests
+import sqlite3
 
 import dal
 
@@ -16,14 +19,13 @@ api_hash = '9dc4be6c707b19578aa61328972af119'
 client = TelegramClient('session_Danek', api_id, api_hash)
 
 
-def get_channel_name(channel_url):
+async def get_channel_name(channel_url):
     # Assuming the channel URL is in the format "https://t.me/channelname"
     # This splits the URL by '/' and returns the last part as the channel name
     return channel_url.split('/')[-1]
 
 
-def send_sub(channel_url, subs_count):
-    channel_name = get_channel_name(channel_url)
+async def send_sub(channel_url, subs_count, group_name):
     with open('services.json', 'r') as file:
         file_data = json.load(file)
 
@@ -43,7 +45,8 @@ def send_sub(channel_url, subs_count):
     response = requests.post(sub_url, data=payload)
     response_json = response.json()
 
-    logger.info(f"Order placed for {subs_count} subs in channel '{channel_name}' at {datetime.datetime.now().time()}")
+    logger.info(f"Ордер на {subs_count} подписчиков в канале '{group_name}' был размещен в "
+                f"{datetime.datetime.now().time()}")
     return response_json
 
 
@@ -61,27 +64,29 @@ async def start_post_views_increasing(channel_url, group_id):
             await dal.Subs.update_started_by_group_id(group_id=group_id, started=1)
 
         while do_sub.stopped == 1 and do_sub.completed == 0 and do_sub.sub_deleted == 0:
-            await asyncio.sleep(120)
-            do_sub = await dal.Subs.get_sub_by_group_id(group_id=group_id)
+            logger.info(f'Ордер для подписчиков в группе {group.name} был остановлен')
+            break
 
         if do_sub.completed == 1:
-            logger.info(f'Order for subs in group {group.name} is completed')
+            logger.info(f'Ордер для подписчиков в группе {group.name} был завершен')
             break
 
         if do_sub.sub_deleted == 1:
-            logger.info(f'Order for subs in group {group.name} is deleted')
+            logger.info(f'Ордер для подписчиков в группе {group.name} был удален')
             break
 
-        if do_sub.subs_count > do_sub.left_amount:
-            do_sub.subs_count = do_sub.left_amount
+        subs_count = random.randint(int(do_sub.subs_count * 0.75), int(do_sub.subs_count * 1.25))
 
-        send_sub(channel_url, do_sub.subs_count)  # Place the sub
-        left_amount = int(do_sub.left_amount) - int(do_sub.subs_count)
+        if subs_count > do_sub.left_amount:
+            subs_count = do_sub.left_amount
+
+        await send_sub(channel_url, subs_count, group.name)  # Place the sub
+        left_amount = int(do_sub.left_amount) - int(subs_count)
 
         await dal.Subs.update_left_amount_by_group_id(group_id=group_id, amount=left_amount)
         if left_amount <= 0:
             await dal.Subs.update_completed_by_group_id(group_id=group_id)
-            logger.info(f'Order for subs in group {group.name} is completed')
+            logger.info(f'Ордер для подписчиков в группе {group.name} был завершен')
             break
 
 
@@ -101,7 +106,7 @@ async def start_backend():
                 sub.completed == 0 and sub.stopped == 0 and
                 (datetime.datetime.utcnow() - sub.last_update) > datetime.timedelta(seconds=sub.minutes * 60 + 2)
             ]):
-                logger.info(f'Doing subs for - {sub.group_link}')
+                logger.info(f'Выполняем ордер для подписчиков - {sub.group_link}')
                 channel_url = sub.group_link
 
                 asyncio.create_task(
@@ -117,8 +122,8 @@ def drop_group_setups():
     dal.Groups.drop_setups()
 
 
-if __name__ == "__main__":
-    logger.info('Backend post views increasing programm has been started')
+def main():
+    logger.info('Программа для накрутки подписчиков была запущена')
     try:
         with client:
             client.loop.run_until_complete(start_backend())
@@ -129,10 +134,18 @@ if __name__ == "__main__":
             sys.exit(130)
         except SystemExit:
             os._exit(130)
+    except sqlite3.OperationalError:
+        logger.info(f'Ошибка - database is locked. Пробуем перезапустить')
+        time.sleep(10.5)
     except Exception as exc:
+        logger.info(f'Программа прекратила работу. Ошибка - {type(exc)}')
         drop_group_setups()
-        logger.info(f'Программа прекратила работу. Ошибка - {exc}')
         try:
             sys.exit(130)
         except SystemExit:
             os._exit(130)
+
+
+if __name__ == "__main__":
+    while True:
+        main()

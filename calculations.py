@@ -2,12 +2,14 @@ import datetime
 import sys
 import os
 import json
+import time
 
 from telethon import TelegramClient, events
 from loguru import logger
 import asyncio
 import requests
 import numpy as np
+import sqlite3
 
 import dal
 
@@ -228,11 +230,11 @@ async def start_backend():
 
 
 def drop_group_setups():
-    dal.Groups.drop_setups()
+    asyncio.run(dal.Groups.drop_setups())
 
 
-if __name__ == "__main__":
-    logger.info('Backend post views increasing programm has been started')
+def main():
+    logger.info('Программа для накрутки просмотров была запущена')
     try:
         with client:
             client.loop.run_until_complete(start_backend())
@@ -243,10 +245,19 @@ if __name__ == "__main__":
             sys.exit(130)
         except SystemExit:
             os._exit(130)
+    except sqlite3.OperationalError:
+        logger.info(f'Ошибка - database is locked. Пробуем перезапустить')
+        time.sleep(10.5)
+        pass
     except Exception as exc:
-        drop_group_setups()
         logger.info(f'Программа прекратила работу. Ошибка - {exc}')
+        drop_group_setups()
         try:
             sys.exit(130)
         except SystemExit:
             os._exit(130)
+
+
+if __name__ == "__main__":
+    while True:
+        main()

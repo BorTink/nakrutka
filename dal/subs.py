@@ -1,16 +1,12 @@
 import dal
 from schemas import Sub, SubWithGroupInfo
-from contextlib import closing
 
 
 class Subs:
     @classmethod
     async def create_db(cls):
-        global db
-        db = await dal.Groups.get_db()
-
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                 CREATE TABLE IF NOT EXISTS subs(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 group_id INTEGER,
@@ -32,8 +28,8 @@ class Subs:
 
     @classmethod
     async def get_not_started_subs_list(cls):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                 SELECT subs.*, groups.link as group_link
                 FROM subs
                 JOIN groups ON groups.id = subs.group_id
@@ -44,13 +40,13 @@ class Subs:
                 LIMIT 1
             """)
 
-            subs = cur.fetchall()
+            subs = await cur.fetchall()
             return [SubWithGroupInfo(**res) for res in subs]
 
     @classmethod
     async def get_subs_list(cls):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                     SELECT subs.*, groups.link as group_link
                     FROM subs
                     JOIN groups ON groups.id = subs.group_id
@@ -59,13 +55,13 @@ class Subs:
                     ORDER BY last_update DESC
                 """)
 
-            subs = cur.fetchall()
+            subs = await cur.fetchall()
             return [SubWithGroupInfo(**res) for res in subs]
 
     @classmethod
     async def get_sub_by_group_id(cls, group_id):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                     SELECT *
                     FROM subs
                     WHERE sub_deleted = 0
@@ -75,7 +71,7 @@ class Subs:
                     LIMIT 1
                 """, (group_id,))
 
-            sub = cur.fetchone()
+            sub = await cur.fetchone()
             if sub:
                 return Sub(**sub)
             else:
@@ -83,16 +79,16 @@ class Subs:
 
     @classmethod
     async def add_sub(cls, group_id, amount, minutes, subs_count):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                 INSERT INTO subs (group_id, full_amount, left_amount, minutes, subs_count)
                 VALUES (?, ?, ?, ?, ?)
             """, (group_id, amount, amount, minutes, subs_count))
 
     @classmethod
     async def update_left_amount_by_group_id(cls, group_id, amount):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                 UPDATE subs
                 SET left_amount = ?,
                 last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
@@ -102,8 +98,8 @@ class Subs:
 
     @classmethod
     async def update_completed_by_group_id(cls, group_id):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                     UPDATE subs
                     SET completed = 1,
                     last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
@@ -113,8 +109,8 @@ class Subs:
 
     @classmethod
     async def update_stopped_by_group_id(cls, group_id, stopped):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                     UPDATE subs
                     SET stopped = ?,
                     last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
@@ -124,8 +120,8 @@ class Subs:
 
     @classmethod
     async def update_started_by_group_id(cls, group_id, started):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                     UPDATE subs
                     SET started = ?,
                     last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
@@ -135,8 +131,8 @@ class Subs:
 
     @classmethod
     async def update_sub_info_by_group_id(cls, group_id, full_amount, minutes, subs_count):
-        with closing(db.cursor()) as cur:
-            cur.execute("""
+        async with dal.Connection() as cur:
+            await cur.execute("""
                         UPDATE subs
                         SET full_amount = ?,
                         left_amount = ?,
