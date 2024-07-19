@@ -5,7 +5,6 @@ import json
 import random
 import time
 
-from telethon import TelegramClient
 from loguru import logger
 import asyncio
 import requests
@@ -16,7 +15,6 @@ import dal
 # Telegram API credentials
 api_id = 19418891
 api_hash = '9dc4be6c707b19578aa61328972af119'
-client = TelegramClient('session_Danek', api_id, api_hash)
 
 
 async def get_channel_name(channel_url):
@@ -121,8 +119,7 @@ async def start_backend():
 def main():
     logger.info('Запускаем программу для накрутки подписчиков...')
     try:
-        with client:
-            client.loop.run_until_complete(start_backend())
+        asyncio.run(start_backend())
     except KeyboardInterrupt:
         logger.info(f'Программа прекратила работу.')
         try:
