@@ -165,11 +165,11 @@ async def setup_event_listener(channel_url, group_id):
     async def new_message_handler(event):
         group = await dal.Groups.get_group_by_id(group_id=group_id)
         if group.deleted or group.auto_orders == 0:
-            logger.info(f'Убираем прослушку в группе {group.name}')
+            logger.info(f'Автонакрутка - Убираем автонакрутку в группе {group.name}')
             client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
             await dal.Groups.update_setup_by_id(group_id=group_id, setup=0)
         elif group.auto_orders == 1:
-            logger.info(f'Добавляем заказ на пост {event.message.id} в группе {group.name}')
+            logger.info(f'Автонакрутка - Добавляем заказ на пост {event.message.id} в группе {group.name}')
 
             order_id = await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
             await dal.Orders.update_started_by_id(order_id=order_id, started=1)
@@ -177,7 +177,7 @@ async def setup_event_listener(channel_url, group_id):
                 channel_url, order_id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
             )
         else:
-            logger.warning(f'Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
+            logger.warning(f'Автонакрутка - Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
     try:
         channel = await client.get_entity(channel_url)
