@@ -164,8 +164,10 @@ async def distribute_views_over_periods(channel_url, order_id, distributions, ho
 async def setup_event_listener(channel_url, group_id):
     async def new_message_handler(event):
         group = await dal.Groups.get_group_by_id(group_id=group_id)
-        if group.deleted:
+        if group.deleted or group.auto_orders == 0:
+            logger.info(f'Убираем прослушку в группе {group.name}')
             client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
+            await dal.Groups.update_setup_by_id(group_id=group_id, setup=0)
         elif group.auto_orders == 1:
             logger.info(f'Добавляем заказ на пост {event.message.id} в группе {group.name}')
 
@@ -204,8 +206,9 @@ async def start_backend():
             channel_url = group.link
             group_id = group.id
 
-            asyncio.create_task(setup_event_listener(channel_url, group_id))
-            await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
+            if group.auto_orders == 1:
+                asyncio.create_task(setup_event_listener(channel_url, group_id))
+                await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
 
         orders = await dal.Orders.get_orders_list()
         for order in orders:
