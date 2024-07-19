@@ -201,12 +201,12 @@ async def start_backend():
     while True:
         groups = await dal.Groups.get_not_setup_groups_list()
         for group in groups:
-            logger.info(f'Проверяется группа - {group.name}')
 
             channel_url = group.link
             group_id = group.id
 
             if group.auto_orders == 1:
+                logger.info(f'Автонакрутка - прослушиваем группу {group.name}')
                 asyncio.create_task(setup_event_listener(channel_url, group_id))
                 await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
 
