@@ -9,7 +9,7 @@ class Connection:
 
     async def __aenter__(self):
         tg_db_path = str(Path(__file__).parent.parent) + '/tg.db'
-        self.db = await sq.connect(tg_db_path, isolation_level=None, timeout=2)
+        self.db = await sq.connect(tg_db_path, isolation_level=None, timeout=5)
         self.db.row_factory = sq.Row
         self.cur = await self.db.cursor()
 
