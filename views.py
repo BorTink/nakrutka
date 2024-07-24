@@ -5,7 +5,6 @@ import json
 import time
 import random
 
-from telethon import TelegramClient, events
 from loguru import logger
 import asyncio
 import requests
@@ -13,11 +12,6 @@ import numpy as np
 import sqlite3
 
 import dal
-
-# Telegram API credentials
-api_id = 19418891
-api_hash = '9dc4be6c707b19578aa61328972af119'
-client = TelegramClient('session_Danek', api_id, api_hash)
 
 first_hour_wait = 4200
 second_hour_wait = 3600
@@ -161,32 +155,6 @@ async def distribute_views_over_periods(channel_url, order_id, distributions, ho
             await asyncio.sleep(second_hour_wait)
 
 
-async def setup_event_listener(channel_url, group_id):
-    async def new_message_handler(event):
-        group = await dal.Groups.get_group_by_id(group_id=group_id)
-        if group.deleted or group.auto_orders == 0:
-            logger.info(f'Автонакрутка - Убираем автонакрутку в группе {group.name}')
-            client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
-            await dal.Groups.update_setup_by_id(group_id=group_id, setup=0)
-        elif group.auto_orders == 1:
-            logger.info(f'Автонакрутка - Добавляем заказ на пост {event.message.id} в группе {group.name}')
-
-            order_id = await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
-            await dal.Orders.update_started_by_id(order_id=order_id, started=1)
-            await start_post_views_increasing(
-                channel_url, order_id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
-            )
-        else:
-            logger.warning(f'Автонакрутка - Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
-
-    try:
-        channel = await client.get_entity(channel_url)
-        client.add_event_handler(new_message_handler, events.NewMessage(chats=channel))
-    except Exception:
-        logger.error(f'Группы {channel_url} не существует. Удаляем группу')
-        await dal.Groups.delete_by_id(group_id=group_id)
-
-
 async def start_post_views_increasing(channel_url, order_id, views, cur_hour, post_time):
     post_time = post_time.astimezone().hour
     distributions = await calculate_view_distribution(post_time, views, cur_hour)
@@ -199,17 +167,6 @@ async def start_backend():
     logger.info('Программа для накрутки просмотров была запущена')
 
     while True:
-        groups = await dal.Groups.get_not_setup_groups_list()
-        for group in groups:
-
-            channel_url = group.link
-            group_id = group.id
-
-            if group.auto_orders == 1:
-                logger.info(f'Автонакрутка - прослушиваем группу {group.name}')
-                asyncio.create_task(setup_event_listener(channel_url, group_id))
-                await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
-
         orders = await dal.Orders.get_orders_list()
         for order in orders:
             if order.hour > 71:
@@ -240,8 +197,7 @@ def drop_group_setups():
 def main():
     logger.info('Запускаем программу для накрутки просмотров...')
     try:
-        with client:
-            client.loop.run_until_complete(start_backend())
+        asyncio.run(start_backend())
     except KeyboardInterrupt:
         drop_group_setups()
         logger.info(f'Программа прекратила работу.')
