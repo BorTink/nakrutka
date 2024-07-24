@@ -1,4 +1,5 @@
 import os
+import json
 
 from aiogram import Dispatcher, types, Bot
 from aiogram.dispatcher import FSMContext
@@ -356,12 +357,16 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     sub = await dal.Subs.get_sub_by_group_id(group_id)
 
     await state.set_state('В подписчиках')
+    with open('services.json', 'r') as file:
+        file_data = json.load(file)
+
+    subs_wait_time = file_data['subs_wait_time']
+
     if sub:
         text = (f'{"Ведется накрутка подписчиков" if not sub.stopped else "Накрутка временно приостановлена"}: \n'
                 f'Необходимо накрутить - {sub.full_amount} \n'
                 f'Осталось накрутить - {sub.left_amount} \n'
-                f'Период накрутки - {sub.minutes} \n'
-                f'Кол-во накручиваемое в период - {sub.subs_count}')
+                f'Период накрутки - {subs_wait_time} секунд \n')
         await callback.message.answer(
             text,
             reply_markup=kb.subs_going
@@ -393,49 +398,17 @@ async def get_link(message: types.Message, state: FSMContext):
             'Введите число'
         )
     else:
-        full_amount = int(message.text)
-        await add_info_to_state(state, 'full_amount', full_amount)
-        await message.answer(
-            'Введите, интервал накрутки (в МИНУТАХ)'
-        )
-        await state.set_state('Новые подписчики - интервал')
-
-
-@dp.message_handler(state='Новые подписчики - интервал')
-async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric():
-        await message.answer(
-            'Введите число'
-        )
-    else:
-        minutes = int(message.text)
-        await add_info_to_state(state, 'minutes', minutes)
-        await message.answer(
-            'Введите, сколько подписчиков будет накручиваться раз в интервал'
-        )
-        await state.set_state('Новые подписчики - подп в интервал')
-
-
-@dp.message_handler(state='Новые подписчики - подп в интервал')
-async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric():
-        await message.answer(
-            'Введите число'
-        )
-    else:
         group_id = await get_info_from_state(state, 'group_id')
-        full_amount = await get_info_from_state(state, 'full_amount')
-        minutes = await get_info_from_state(state, 'minutes')
-        subs_count = int(message.text)
+        full_amount = int(message.text)
 
         sub = await dal.Subs.get_sub_by_group_id(group_id)
         if sub:
-            await dal.Subs.update_sub_info_by_group_id(group_id, full_amount, minutes, subs_count)
+            await dal.Subs.update_sub_info_by_group_id(group_id, full_amount)
             await message.answer(
                 'Изменения были добавлены в накрутку'
             )
         else:
-            await dal.Subs.add_sub(group_id, full_amount, minutes, subs_count)
+            await dal.Subs.add_sub(group_id, full_amount)
             await message.answer(
                 'Накрутка подписчиков была добавлена. Она уже начинается'
             )
@@ -456,7 +429,7 @@ async def get_link(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler(state='В подписчиках', text='Переключить статус подписчиков')
-async def add_subs(callback: types.CallbackQuery, state: FSMContext):
+async def switch_subs(callback: types.CallbackQuery, state: FSMContext):
     group_id = await get_info_from_state(state, 'group_id')
     sub = await dal.Subs.get_sub_by_group_id(group_id)
     stopped = int(sub.stopped) - 1

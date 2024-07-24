@@ -8,8 +8,7 @@ class Sub(BaseModel):
     group_id: int
     full_amount: int
     left_amount: int
-    minutes: int
-    subs_count: int
+    hour: int
 
     started: int
     completed: int
@@ -25,8 +24,7 @@ class SubWithGroupInfo(BaseModel):
     group_id: int
     full_amount: int
     left_amount: int
-    minutes: int
-    subs_count: int
+    hour: int
 
     started: int
     completed: int

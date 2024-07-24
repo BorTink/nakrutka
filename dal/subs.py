@@ -12,8 +12,7 @@ class Subs:
                 group_id INTEGER,
                 full_amount INTEGER,
                 left_amount INTEGER,
-                minutes INTEGER,
-                subs_count INTEGER,
+                hour INTEGER DEFAULT 0,
                 
                 started INTEGER DEFAULT 0,
                 completed INTEGER DEFAULT 0,
@@ -78,12 +77,12 @@ class Subs:
                 return None
 
     @classmethod
-    async def add_sub(cls, group_id, amount, minutes, subs_count):
+    async def add_sub(cls, group_id, amount):
         async with dal.Connection() as cur:
             await cur.execute("""
-                INSERT INTO subs (group_id, full_amount, left_amount, minutes, subs_count)
-                VALUES (?, ?, ?, ?, ?)
-            """, (group_id, amount, amount, minutes, subs_count))
+                INSERT INTO subs (group_id, full_amount, left_amount)
+                VALUES (?, ?, ?)
+            """, (group_id, amount, amount))
 
     @classmethod
     async def update_left_amount_by_group_id(cls, group_id, amount):
@@ -95,6 +94,17 @@ class Subs:
                 WHERE group_id = ?
                 AND completed = 0
             """, (amount, group_id))
+
+    @classmethod
+    async def update_hour_by_group_id(cls, group_id, hour):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                    UPDATE subs
+                    SET hour = ?,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                    WHERE group_id = ?
+                    AND completed = 0
+                """, (hour, group_id))
 
     @classmethod
     async def update_completed_by_group_id(cls, group_id):
@@ -130,15 +140,13 @@ class Subs:
                 """, (started, group_id))
 
     @classmethod
-    async def update_sub_info_by_group_id(cls, group_id, full_amount, minutes, subs_count):
+    async def update_sub_info_by_group_id(cls, group_id, full_amount):
         async with dal.Connection() as cur:
             await cur.execute("""
                         UPDATE subs
                         SET full_amount = ?,
                         left_amount = ?,
-                        minutes = ?,
-                        subs_count = ?,
                         last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                         WHERE group_id = ?
                         AND completed = 0
-                    """, (full_amount, full_amount, minutes, subs_count, group_id))
+                    """, (full_amount, full_amount, group_id))
