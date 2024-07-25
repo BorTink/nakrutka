@@ -12,10 +12,12 @@ class Groups:
                 name TEXT,
                 link TEXT,
                 amount INTEGER,
+                reactions_amount INTEGER DEFAULT 0,
                 last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 
                 setup INTEGER DEFAULT 0,
                 auto_orders INTEGER DEFAULT 0,
+                auto_reactions INTEGER DEFAULT 0,
                 deleted INTEGER DEFAULT 0
                 )
             """)
@@ -117,6 +119,16 @@ class Groups:
             """, (amount, group_id))
 
     @classmethod
+    async def update_reactions_amount_by_id(cls, group_id, reactions_amount):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                    UPDATE groups
+                    SET reactions_amount = ?,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                    WHERE id = ?
+                """, (reactions_amount, group_id))
+
+    @classmethod
     async def update_auto_orders_by_id(cls, group_id, auto_orders):
         async with dal.Connection() as cur:
             await cur.execute("""
@@ -125,6 +137,16 @@ class Groups:
                 last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                 WHERE id = ?
             """, (auto_orders, group_id))
+
+    @classmethod
+    async def update_auto_reactions_by_id(cls, group_id, auto_reactions):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                    UPDATE groups
+                    SET auto_reactions = ?,
+                    last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                    WHERE id = ?
+                """, (auto_reactions, group_id))
 
     @classmethod
     async def update_setup_by_id(cls, group_id, setup):

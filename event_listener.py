@@ -11,6 +11,7 @@ import sqlite3
 
 import dal
 import views
+import reactions
 
 # Telegram API credentials
 api_id = 19418891
@@ -26,13 +27,21 @@ async def setup_event_listener(channel_url, group_id):
             await dal.Groups.update_setup_by_id(group_id=group_id, setup=0)
             client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
         elif group.auto_orders == 1:
-            logger.info(f'Автонакрутка - Добавляем заказ на пост {event.message.id} в группе {group.name}')
+            logger.info(f'Автонакрутка просмотров - Добавляем заказ на пост {event.message.id} в группе {group.name}')
 
             order_id = await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
             await dal.Orders.update_started_by_id(order_id=order_id, started=1)
             await views.start_post_views_increasing(
                 channel_url, order_id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
             )
+            if group.auto_reactions == 1:
+                logger.info(f'Автонакрутка реакций - Добавляем заказ на пост {event.message.id} в группе {group.name}')
+
+                reaction_id = await dal.Reactions.add_reaction(group_id=group_id, post_id=event.message.id, amount=group.reactions_amount)
+                await dal.Orders.update_started_by_id(order_id=order_id, started=1)
+                await reactions.start_post_reactions_increasing(
+                    channel_url, reaction_id, group.reactions_amount, cur_hour=0, post_time=datetime.datetime.now()
+                )
         else:
             logger.warning(f'Автонакрутка - Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
@@ -57,7 +66,7 @@ async def start_backend():
             group_id = group.id
 
             if group.auto_orders == 1:
-                logger.info(f'Автонакрутка - прослушиваем группу {group.name}')
+                logger.info(f'Автонакрутка просмотров - прослушиваем группу {group.name}')
                 asyncio.create_task(setup_event_listener(channel_url, group_id))
                 await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
 
