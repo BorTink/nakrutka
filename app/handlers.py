@@ -288,7 +288,7 @@ async def get_link(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query_handler(state='В группе', text='Получить список постов')
-async def add_group(callback: types.CallbackQuery, state: FSMContext):
+async def get_posts(callback: types.CallbackQuery, state: FSMContext):
     group_id = await get_info_from_state(state, 'group_id')
     orders = await dal.Orders.get_not_completed_orders_list_by_group_id(group_id)
     if orders:
@@ -455,7 +455,9 @@ async def switch_subs(callback: types.CallbackQuery, state: FSMContext):
     )
 
 
-@dp.callback_query_handler(state=['В заказах', 'В подписчиках'], text='Вернуться к группе')
+@dp.callback_query_handler(
+    state=['В заказах', 'В подписчиках', 'В реакциях', 'В ордерах реакций'], text='Вернуться к группе'
+)
 async def add_group(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state('В группе')
     group_id = await get_info_from_state(state, 'group_id')
@@ -538,4 +540,200 @@ async def get_link(message: types.Message, state: FSMContext):
                 f'{views_stats} просмотров \n'
                 f'{subs_stats} подписчиков',
                 reply_markup=kb.group
+            )
+
+
+@dp.callback_query_handler(state='В группе', text='Перейти к реакциям')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+
+    await state.set_state('В реакциях')
+
+    await callback.message.answer(
+        f'Накрутка РЕАКЦИЙ в группе группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.reactions_amount} реакций | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_reactions else "АКТИВНА"} | ',
+        reply_markup=kb.reactions
+    )
+
+
+@dp.callback_query_handler(state='В реакциях', text='Поменять просмотры')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+    await callback.message.answer(
+        f'Сейчас в группе автоматически накручивается - {group.reactions_amount} реакций. \n'
+        f'Введите новое значение'
+    )
+    await state.set_state('Реакции - Новое значение накрутки')
+
+
+@dp.message_handler(state='Реакции - Новое значение накрутки')
+async def get_link(message: types.Message, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    await dal.Groups.update_reactions_amount_by_id(group_id=group_id, reactions_amount=int(message.text))
+    await message.answer('Кол-во было успешно обновлено.')
+
+    group = await dal.Groups.get_group_by_id(group_id)
+    await state.set_state('В реакциях')
+
+    await message.answer(
+        f'Накрутка РЕАКЦИЙ в группе группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.reactions_amount} реакций | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_reactions else "АКТИВНА"} | ',
+        reply_markup=kb.reactions
+    )
+
+
+@dp.callback_query_handler(state='В реакциях', text='Получить список реакций')
+async def get_posts(callback: types.CallbackQuery, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    reactions = await dal.Reactions.get_not_completed_reactions_list_by_group_id(group_id)
+    if reactions:
+        text = 'Список ордеров реакций: \n'
+        for reaction in reactions: # TODO: оптимизировать текст и вывод постов (если слишком много)
+            text += (
+                f'{reaction.post_id} | Всего для накрутки: {reaction.full_amount} | Осталось накрутить: {reaction.left_amount} | '
+                f'Статус: {"остановлено" if reaction.stopped else "окончено" if reaction.completed else "в процессе"}\n')
+        await state.set_state('В ордерах реакций')
+        await callback.message.answer(
+            text,
+            reply_markup=kb.reactions_orders
+        )
+    else:
+        group = await dal.Groups.get_group_by_id(group_id)
+        await callback.message.answer(
+            'Ордеров реакций пока нет.'
+        )
+
+        await callback.message.answer(
+            f'Накрутка РЕАКЦИЙ в группе группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.reactions_amount} реакций | '
+            f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_reactions else "АКТИВНА"} | ',
+            reply_markup=kb.reactions
+        )
+
+
+@dp.callback_query_handler(state='В реакциях', text='Реакции - старый пост')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.answer(
+        'Введите id поста для накрутки'
+    )
+    await state.set_state('Реакции - Введите id поста для накрутки')
+
+
+@dp.message_handler(state='Реакции - Введите id поста для накрутки')
+async def get_link(message: types.Message, state: FSMContext):
+    if not message.text.isnumeric():  # TODO: добавить проверку на то, что число > 0
+        await message.answer(
+            'Введите число'
+        )
+    else:
+        group_id = await get_info_from_state(state, 'group_id')
+        new_post_id = int(message.text)
+
+        reactions = await dal.Reactions.get_reactions_list_by_group_id(group_id)
+        for i in reactions:
+            if new_post_id == i.post_id:
+                await message.answer('Для такого поста уже существует ордер')
+                new_post_id = None
+
+        if new_post_id:
+            await add_info_to_state(state, 'post_id', new_post_id)
+            await message.answer(
+                'Введите, сколько нужно накрутить реакций на этот пост'
+            )
+            await state.set_state('Реакции - Старый пост кол-во')
+
+
+@dp.message_handler(state='Реакции - Старый пост кол-во')
+async def get_link(message: types.Message, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    post_id = await get_info_from_state(state, 'post_id')
+    amount = int(message.text)
+
+    await dal.Reactions.add_reaction(group_id, post_id, amount, stopped=1)
+
+    await message.answer(
+        'Ордер был добавлен'
+    )
+
+    group = await dal.Groups.get_group_by_id(group_id)
+    await state.set_state('В реакциях')
+
+    await message.answer(
+        f'Накрутка РЕАКЦИЙ в группе группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.reactions_amount} реакций | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_reactions else "АКТИВНА"} | ',
+        reply_markup=kb.reactions
+    )
+
+
+@dp.callback_query_handler(state='В реакциях', text='Реакции - переключить статус')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+    await dal.Groups.update_auto_reactions_by_id(group_id=group_id, auto_reactions=0 if group.auto_reactions else 1)
+
+    group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
+
+    await callback.message.answer(
+        f'Накрутка РЕАКЦИЙ в группе группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.reactions_amount} реакций | '
+        f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_reactions else "АКТИВНА"} | ',
+        reply_markup=kb.reactions
+    )
+
+
+@dp.callback_query_handler(state='В ордерах реакций', text=['Реакции - отключить заказ', 'Реакции - включить заказ'])
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == 'Реакции - отключить заказ':
+        await add_info_to_state(state, 'stopped', 1)
+    elif callback.data == 'Реакции - включить заказ':
+        await add_info_to_state(state, 'stopped', 0)
+
+    await callback.message.answer(
+        'Введите id поста'
+    )
+    await state.set_state('Реакции - Введите id поста')
+
+
+@dp.message_handler(state='Реакции - Введите id поста')
+async def get_post_id_reactions(message: types.Message, state: FSMContext):
+    if not message.text.isnumeric():
+        await message.answer(
+            'Введите число'
+        )
+    else:
+        post_id = int(message.text)
+        group_id = await get_info_from_state(state, 'group_id')
+
+        group = await dal.Groups.get_group_by_id(group_id)
+        this_order = await dal.Reactions.get_reaction_by_group_and_post(group_id=group_id, post_id=post_id)
+
+        if not this_order:
+            await message.answer(
+                'Такого заказа на реакции не существует'
+            )
+
+            await state.set_state('В реакциях')
+
+            await message.answer(
+                f'Накрутка РЕАКЦИЙ в группе группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.reactions_amount} реакций | '
+                f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_reactions else "АКТИВНА"} | ',
+                reply_markup=kb.reactions
+            )
+
+        else:
+            stopped = await get_info_from_state(state, 'stopped')
+            await dal.Reactions.update_stopped_by_id(reaction_id=this_order.id, stopped=stopped)
+            text = f'Заказ на реакции c post_id = {post_id} был '
+            text += 'возобновлен' if stopped == 0 else 'остановлен'
+            await message.answer(
+                text
+            )
+
+            await state.set_state('В реакциях')
+
+            await message.answer(
+                f'Накрутка РЕАКЦИЙ в группе группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.reactions_amount} реакций | '
+                f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_reactions else "АКТИВНА"} | ',
+                reply_markup=kb.reactions
             )

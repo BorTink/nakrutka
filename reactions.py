@@ -4,6 +4,7 @@ import os
 import json
 import time
 import random
+import math
 
 from loguru import logger
 import asyncio
@@ -67,7 +68,9 @@ async def send_reaction(channel_url, post_id, reactions_count):
     response_json = None
     reactions_spread_list = generate_random_list(reactions_count, len(service_ids))
     for i in range(len(service_ids)):
-        cur_count = reactions_spread_list[i]
+        cur_count = math.ceil(reactions_spread_list[i])
+        if cur_count < 10:
+            cur_count += 10
         reaction_url = f"{service_url}/api/v2?action=add&service={service_ids[i]}&link={post_link}&quantity={cur_count}&key={api_key}"
         response = requests.post(reaction_url)  # Updated to use POST as specified in the PDF
         response_json = response.json()
