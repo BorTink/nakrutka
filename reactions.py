@@ -92,12 +92,12 @@ async def distribute_reactions_count_over_periods(channel_url, reaction_id, dist
     for reactions_count in distributions:
         do_reaction = await dal.Reactions.get_reaction_by_id(reaction_id=reaction_id)
 
+        if do_reaction.started == 0:
+            await dal.Reactions.update_started_by_id(reaction_id=reaction_id, started=1)
+
         if do_reaction.stopped == 1 and do_reaction.completed == 0 and do_reaction.reaction_deleted == 0:
             logger.info(f'Ордер на реакции с id = {reaction_id} был остановлен')
             break
-
-        if do_reaction.started == 0:
-            await dal.Reactions.update_started_by_id(reaction_id=reaction_id, started=1)
 
         if do_reaction.completed == 1 or do_reaction.reaction_deleted == 1:
             logger.info(f'Ордер на реакции с id = {reaction_id} был завершен или удален')

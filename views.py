@@ -123,12 +123,12 @@ async def distribute_views_over_periods(channel_url, order_id, distributions, ho
     for views in distributions:
         do_order = await dal.Orders.get_order_by_id(order_id=order_id)
 
+        if do_order.started == 0:
+            await dal.Orders.update_started_by_id(order_id=order_id, started=1)
+
         if do_order.stopped == 1 and do_order.completed == 0 and do_order.order_deleted == 0:
             logger.info(f'Ордер с order_id = {order_id} был остановлен')
             break
-
-        if do_order.started == 0:
-            await dal.Orders.update_started_by_id(order_id=order_id, started=1)
 
         if do_order.completed == 1 or do_order.order_deleted == 1:
             logger.info(f'Ордер с order_id = {order_id} был завершен или удален')
