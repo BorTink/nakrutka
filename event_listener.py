@@ -28,19 +28,11 @@ async def setup_event_listener(channel_url, group_id, client):
         elif group.auto_orders == 1:
             logger.info(f'Автонакрутка просмотров - Добавляем заказ на пост {event.message.id} в группе {group.name}')
 
-            order_id = await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
-            await dal.Orders.update_started_by_id(order_id=order_id, started=1)
-            asyncio.create_task(views.start_post_views_increasing(
-                channel_url, order_id, group.amount, cur_hour=0, post_time=datetime.datetime.now()
-            ))
+            await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
             if group.auto_reactions == 1:
                 logger.info(f'Автонакрутка реакций - Добавляем заказ на пост {event.message.id} в группе {group.name}')
 
-                reaction_id = await dal.Reactions.add_reaction(group_id=group_id, post_id=event.message.id, amount=group.reactions_amount)
-                await dal.Orders.update_started_by_id(order_id=order_id, started=1)
-                asyncio.create_task(reactions.start_post_reactions_increasing(
-                    channel_url, reaction_id, group.reactions_amount, cur_hour=0, post_time=datetime.datetime.now()
-                ))
+                await dal.Reactions.add_reaction(group_id=group_id, post_id=event.message.id, amount=group.reactions_amount)
         else:
             logger.warning(f'Автонакрутка - Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
 
@@ -83,24 +75,32 @@ async def start_backend(client, last_reboot_day):
 
         await asyncio.sleep(random.randrange(2, 4))
 
+def drop_group_setups():
+    asyncio.run(dal.Groups.drop_setups())
+
 
 async def main():
     logger.info('Запускаем трекер постов для каналов...')
-    try:
-        last_reboot_day = 0
-        while True:
-            client = TelegramClient('session_Danek', api_id, api_hash, auto_reconnect=True)
-            await client.connect()
+    last_reboot_day = 0
+    while True:
+        client = TelegramClient('session_Danek', api_id, api_hash, auto_reconnect=True)
+        await client.connect()
 
-            async with client:
-                await start_backend(client, last_reboot_day)
+        async with client:
+            await start_backend(client, last_reboot_day)
 
-            logger.warning('Плановое переподключение клиента в 3 часа ночи.')
-            last_reboot_day = datetime.datetime.now().day
-            await client.disconnect()
-            await dal.Groups.drop_setups()
-    except KeyboardInterrupt:
+        logger.warning('Плановое переподключение клиента в 3 часа ночи.')
+        last_reboot_day = datetime.datetime.now().day
+        await client.disconnect()
         await dal.Groups.drop_setups()
+
+
+if __name__ == "__main__":
+    try:
+        while True:
+            asyncio.run(main())
+    except KeyboardInterrupt:
+        drop_group_setups()
         logger.info(f'Программа прекратила работу.')
         try:
             sys.exit(130)
@@ -110,14 +110,9 @@ async def main():
         logger.info(f'Ошибка - database is locked. Пробуем перезапустить')
         time.sleep(10.5)
     except Exception as exc:
-        await dal.Groups.drop_setups()
+        drop_group_setups()
         logger.info(f'Программа прекратила работу. Ошибка - {exc}')
         try:
             sys.exit(130)
         except SystemExit:
             os._exit(130)
-
-
-if __name__ == "__main__":
-    while True:
-        asyncio.run(main())
