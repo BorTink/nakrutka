@@ -67,6 +67,7 @@ async def start_backend():
                             break
 
                     await dal.Groups.update_new_post_id_by_id(group_id, new_post_id)
+                    await asyncio.sleep(random.randrange(2, 4))
 
         await client.disconnect()
 
