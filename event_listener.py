@@ -26,14 +26,14 @@ async def get_last_message(client, channel_url):
 
 
 async def start_backend():
-    client = TelegramClient('session_Danek', api_id, api_hash, auto_reconnect=True)
-    await client.connect()
 
     await dal.Groups.create_db()
     await dal.Orders.create_db()
     logger.info('Трекер постов для каналов был запущен')
 
     while True:
+        client = TelegramClient('session_Danek', api_id, api_hash, auto_reconnect=True)
+        await client.connect()
         groups = await dal.Groups.get_groups_list()
         for group in groups:
 
