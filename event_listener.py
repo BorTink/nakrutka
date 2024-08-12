@@ -4,48 +4,33 @@ import os
 import time
 import random
 
-from telethon import TelegramClient, events
+from telethon import TelegramClient
+from telethon.tl.functions.messages import GetHistoryRequest
 from loguru import logger
 import asyncio
 import sqlite3
 
 import dal
-import views
-import reactions
 
 # Telegram API credentials
 api_id = 19418891
 api_hash = '9dc4be6c707b19578aa61328972af119'
 
 
-async def setup_event_listener(channel_url, group_id, client):
-    async def new_message_handler(event):
-        group = await dal.Groups.get_group_by_id(group_id=group_id)
-        if group.deleted or group.auto_orders == 0:
-            logger.info(f'Автонакрутка - Убираем автонакрутку в группе {group.name}')
-            await dal.Groups.update_setup_by_id(group_id=group_id, setup=0)
-            client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
-        elif group.auto_orders == 1:
-            logger.info(f'Автонакрутка просмотров - Добавляем заказ на пост {event.message.id} в группе {group.name}')
+async def get_last_message(client, channel_url):
+    channel_entity = await client.get_entity(channel_url)
+    posts = await client(GetHistoryRequest(
+        peer=channel_entity,
+        limit=100,
+        offset_date=None,
+        offset_id=0,
+        max_id=0,
+        min_id=0,
+        add_offset=0,
+        hash=0))
+    last_post = posts.messages[0]
 
-            await dal.Orders.add_order(group_id=group_id, post_id=event.message.id, amount=group.amount)
-            if group.auto_reactions == 1:
-                logger.info(f'Автонакрутка реакций - Добавляем заказ на пост {event.message.id} в группе {group.name}')
-
-                await dal.Reactions.add_reaction(group_id=group_id, post_id=event.message.id, amount=group.reactions_amount)
-        else:
-            logger.warning(f'Автонакрутка - Пропускаем пост {event.message.id} в группе {group.name} - выключен авто ордер')
-
-    try:
-        if not client.is_connected():
-            logger.warning('Клиент отключился. Переподключаемся')
-            await client.connect()
-
-        channel = await client.get_entity(channel_url)
-        client.add_event_handler(new_message_handler, events.NewMessage(chats=channel))
-    except Exception as exc:
-        logger.error(f'Группы {channel_url} не существует. Удаляем группу')
-        await dal.Groups.delete_by_id(group_id=group_id)
+    return last_post.id
 
 
 async def start_backend(client, last_reboot_day):
@@ -54,16 +39,35 @@ async def start_backend(client, last_reboot_day):
     logger.info('Трекер постов для каналов был запущен')
 
     while True:
-        groups = await dal.Groups.get_not_setup_groups_list()
+        groups = await dal.Groups.get_groups_list()
         for group in groups:
 
             channel_url = group.link
             group_id = group.id
 
             if group.auto_orders == 1:
-                logger.info(f'Автонакрутка просмотров - прослушиваем группу {group.name}')
-                await dal.Groups.update_setup_by_id(group_id=group_id, setup=1)
-                asyncio.create_task(setup_event_listener(channel_url, group_id, client))
+                last_post_id = await get_last_message(client, channel_url)
+                if not group.new_post_id:
+                    new_post_id = last_post_id + 1
+                    await dal.Groups.update_new_post_id_by_id(group_id, new_post_id)
+                    logger.info(
+                        f'Автонакрутка - new_post_id в группе {group.name} был обновлен'
+                    )
+                elif last_post_id >= group.new_post_id:
+                    new_post_id = group.new_post_id
+                    logger.info(
+                        f'Автонакрутка просмотров - Добавляем заказ на пост {new_post_id} в группе {group.name}')
+
+                    await dal.Orders.add_order(group_id=group_id, post_id=new_post_id, amount=group.amount)
+                    if group.auto_reactions == 1:
+                        logger.info(
+                            f'Автонакрутка реакций - Добавляем заказ на пост {new_post_id} в группе {group.name}')
+
+                        await dal.Reactions.add_reaction(group_id=group_id, post_id=new_post_id,
+                                                         amount=group.reactions_amount)
+
+                    new_post_id = last_post_id + 1
+                    await dal.Groups.update_new_post_id_by_id(group_id, new_post_id)
 
         now = datetime.datetime.now()
         if all([
@@ -74,6 +78,7 @@ async def start_backend(client, last_reboot_day):
             break
 
         await asyncio.sleep(random.randrange(2, 4))
+
 
 def drop_group_setups():
     asyncio.run(dal.Groups.drop_setups())

@@ -11,6 +11,7 @@ class Groups:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
                 link TEXT,
+                new_post_id INTEGER,
                 amount INTEGER,
                 reactions_amount INTEGER DEFAULT 0,
                 last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -157,6 +158,16 @@ class Groups:
                 last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
                 WHERE id = ?
             """, (setup, group_id))
+
+    @classmethod
+    async def update_new_post_id_by_id(cls, group_id, new_post_id):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                        UPDATE groups
+                        SET new_post_id = ?,
+                        last_update = strftime('%Y-%m-%d %H:%M:%S', datetime('now'))
+                        WHERE id = ?
+                    """, (new_post_id, group_id))
 
     @classmethod
     async def delete_by_id(cls, group_id):
