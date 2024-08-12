@@ -191,6 +191,7 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     group_id = await get_info_from_state(state, 'group_id')
     group = await dal.Groups.get_group_by_id(group_id)
     await dal.Groups.update_auto_orders_by_id(group_id=group_id, auto_orders=0 if group.auto_orders else 1)
+    await dal.Groups.update_new_post_id_by_id(group_id=group_id, new_post_id=None)
 
     group_id = await get_info_from_state(state, 'group_id')
     group = await dal.Groups.get_group_by_id(group_id)
