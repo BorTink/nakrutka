@@ -19,16 +19,8 @@ api_hash = '9dc4be6c707b19578aa61328972af119'
 
 async def get_last_message(client, channel_url):
     channel_entity = await client.get_entity(channel_url)
-    posts = await client(GetHistoryRequest(
-        peer=channel_entity,
-        limit=100,
-        offset_date=None,
-        offset_id=0,
-        max_id=0,
-        min_id=0,
-        add_offset=0,
-        hash=0))
-    last_post = posts.messages[0]
+    posts = await client.get_messages(channel_entity)
+    last_post = posts[0]
 
     return last_post.id
 
@@ -81,7 +73,7 @@ async def start_backend(client, last_reboot_day):
         ]):
             break
 
-        await asyncio.sleep(random.randrange(2, 4))
+        await asyncio.sleep(random.randrange(7, 12))
 
 
 def drop_group_setups():
