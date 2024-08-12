@@ -25,7 +25,10 @@ async def get_last_message(client, channel_url):
     return last_post.id
 
 
-async def start_backend(client, last_reboot_day):
+async def start_backend():
+    client = TelegramClient('session_Danek', api_id, api_hash, auto_reconnect=True)
+    await client.connect()
+
     await dal.Groups.create_db()
     await dal.Orders.create_db()
     logger.info('Трекер постов для каналов был запущен')
@@ -65,15 +68,9 @@ async def start_backend(client, last_reboot_day):
 
                     await dal.Groups.update_new_post_id_by_id(group_id, new_post_id)
 
-        now = datetime.datetime.now()
-        if all([
-            now.day != last_reboot_day,
-            now.hour == 3,
-            3 < datetime.datetime.now().minute < 10
-        ]):
-            break
+        await client.disconnect()
 
-        await asyncio.sleep(random.randrange(7, 12))
+        await asyncio.sleep(random.randrange(30, 40))
 
 
 def drop_group_setups():
@@ -82,18 +79,8 @@ def drop_group_setups():
 
 async def main():
     logger.info('Запускаем трекер постов для каналов...')
-    last_reboot_day = 0
     while True:
-        client = TelegramClient('session_Danek', api_id, api_hash, auto_reconnect=True)
-        await client.connect()
-
-        async with client:
-            await start_backend(client, last_reboot_day)
-
-        logger.warning('Плановое переподключение клиента в 3 часа ночи.')
-        last_reboot_day = datetime.datetime.now().day
-        await client.disconnect()
-        await dal.Groups.drop_setups()
+        await start_backend()
 
 
 if __name__ == "__main__":
