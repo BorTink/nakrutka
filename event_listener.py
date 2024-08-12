@@ -55,18 +55,22 @@ async def start_backend(client, last_reboot_day):
                     )
                 elif last_post_id >= group.new_post_id:
                     new_post_id = group.new_post_id
-                    logger.info(
-                        f'Автонакрутка просмотров - Добавляем заказ на пост {new_post_id} в группе {group.name}')
-
-                    await dal.Orders.add_order(group_id=group_id, post_id=new_post_id, amount=group.amount)
-                    if group.auto_reactions == 1:
+                    while True:
                         logger.info(
-                            f'Автонакрутка реакций - Добавляем заказ на пост {new_post_id} в группе {group.name}')
+                            f'Автонакрутка просмотров - Добавляем заказ на пост {new_post_id} в группе {group.name}')
 
-                        await dal.Reactions.add_reaction(group_id=group_id, post_id=new_post_id,
-                                                         amount=group.reactions_amount)
+                        await dal.Orders.add_order(group_id=group_id, post_id=new_post_id, amount=group.amount)
+                        if group.auto_reactions == 1:
+                            logger.info(
+                                f'Автонакрутка реакций - Добавляем заказ на пост {new_post_id} в группе {group.name}')
 
-                    new_post_id = last_post_id + 1
+                            await dal.Reactions.add_reaction(group_id=group_id, post_id=new_post_id,
+                                                             amount=group.reactions_amount)
+
+                        new_post_id += 1
+                        if last_post_id < new_post_id:
+                            break
+
                     await dal.Groups.update_new_post_id_by_id(group_id, new_post_id)
 
         now = datetime.datetime.now()
