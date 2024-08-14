@@ -106,6 +106,11 @@ async def send_order(channel_url, post_id, order_views, left_amount, full_amount
     order_url = f"{service_url}/api/v2?action=add&service={service_id}&link={post_link}&quantity={order_views}&key={api_key}"
     response = requests.post(order_url)  # Updated to use POST as specified in the PDF
     response_json = response.json()
+    if not response_json.get('order', None):
+        logger.error(f"Произошла ошибка при создании ордера на {order_views} просмотров на пост с ID {post_id} "
+                     f"в канале '{channel_name}' - {response_json}")
+        return None
+
     logger.info(f"Order placed for {order_views} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
     return response_json
 
