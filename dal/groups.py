@@ -68,6 +68,23 @@ class Groups:
                 return None
 
     @classmethod
+    async def get_new_post_id_by_group_id(cls, group_id):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                        SELECT new_post_id
+                        FROM groups
+                        WHERE deleted == 0
+                        AND id = ?
+                        ORDER BY last_update DESC
+                    """, (group_id,))
+
+            new_post_id = await cur.fetchone()
+            if new_post_id:
+                return int(new_post_id['new_post_id'])
+            else:
+                return None
+
+    @classmethod
     async def get_views_stats_by_group_id(cls, group_id):
         async with dal.Connection() as cur:
             await cur.execute("""

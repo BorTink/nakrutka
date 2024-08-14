@@ -105,6 +105,25 @@ class Orders:
                 return None
 
     @classmethod
+    async def get_not_completed_order_by_group_and_post(cls, group_id, post_id):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                            SELECT *
+                            FROM orders
+                            WHERE order_deleted == 0
+                            AND completed = 0
+                            AND group_id = ?
+                            AND post_id = ?
+                            ORDER BY last_update DESC
+                        """, (group_id, post_id,))
+
+            order = await cur.fetchone()
+            if order:
+                return Order(**order)
+            else:
+                return None
+
+    @classmethod
     async def add_order(cls, group_id, post_id, amount, stopped=0):
         async with dal.Connection() as cur:
             await cur.execute("""
