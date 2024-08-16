@@ -19,14 +19,18 @@ api_id = 19418891
 api_hash = '9dc4be6c707b19578aa61328972af119'
 
 
-async def add_orders_to_last_posts(group, last_post_id):
+async def update_last_timeout(group_name):
     with open('last_timeout.json', 'r') as f:
         data = json.load(f)
 
-    data[group.name] = str(datetime.datetime.now())
+    data[group_name] = str(datetime.datetime.now())
 
     with open('last_timeout.json', 'w') as f:
         json.dump(data, f)
+
+
+async def add_orders_to_last_posts(group, last_post_id):
+    await update_last_timeout(group.name)
 
     new_post_id = group.new_post_id
     await asyncio.sleep(abs(last_post_id - new_post_id) * 1.5 + 0.1)
@@ -141,6 +145,8 @@ async def start_backend(client, last_reboot_day):
                 if last_post_id >= group.new_post_id:
                     await add_orders_to_last_posts(group, last_post_id)
                     await asyncio.sleep(random.randrange(2, 4))
+
+                await update_last_timeout(group.name)
 
         await asyncio.sleep(random.randrange(7, 12))
 
