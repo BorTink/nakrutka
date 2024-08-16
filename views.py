@@ -111,7 +111,7 @@ async def send_order(channel_url, post_id, order_views, left_amount, full_amount
                      f"в канале '{channel_name}' - {response_json}")
         return None
 
-    logger.info(f"Order placed for {order_views} views for post ID {post_id} in channel '{channel_name}' at {datetime.datetime.now().time()}")
+    logger.info(f"Ордер на {order_views} для поста с ID {post_id} в канале {channel_name} был создан - {response_json}")
     return response_json
 
 
