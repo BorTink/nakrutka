@@ -60,6 +60,8 @@ async def setup_event_listener(channel_url, group_id, client):
             await dal.Groups.update_setup_by_id(group_id=group_id, setup=0)
             client.remove_event_handler(new_message_handler, events.NewMessage(chats=channel))
         elif group.auto_orders == 1:
+            logger.info(f'Найдено новое сообщение в группе {group.name}: '
+                        f'его id - {event.message.id}, new_post_id - {group.new_post_id}')
             await add_orders_to_last_posts(group, event.message.id)
             await dal.Groups.update_new_post_id_by_id(group_id=group_id, new_post_id=event.message.id + 1)
         else:
@@ -134,6 +136,8 @@ async def start_backend(client, last_reboot_day):
                     )
             elif not last_check or datetime.datetime.now() > last_check + datetime.timedelta(minutes=20):
                 last_post_id = await get_last_message(client, channel_url)
+                logger.info(f'Проверка группы {group.name} на пропущенные посты: '
+                            f'последний - {last_post_id}, new_post_id - {group.new_post_id}')
                 if last_post_id >= group.new_post_id:
                     await add_orders_to_last_posts(group, last_post_id)
                     await asyncio.sleep(random.randrange(2, 4))
