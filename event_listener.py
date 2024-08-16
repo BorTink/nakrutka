@@ -49,7 +49,7 @@ async def add_orders_to_last_posts(group, last_post_id):
         new_post_id += 1
         await asyncio.sleep(random.uniform(0.2, 0.9))
 
-    await dal.Groups.update_new_post_id_by_id(group.id, new_post_id + 1)
+    await dal.Groups.update_new_post_id_by_id(group.id, new_post_id)
 
 
 async def setup_event_listener(channel_url, group_id, client):
