@@ -138,7 +138,7 @@ async def start_backend(client, last_reboot_day):
                     logger.info(
                         f'Автонакрутка - new_post_id в группе {group.name} был обновлен'
                     )
-            elif not last_check or datetime.datetime.now() > last_check + datetime.timedelta(minutes=20):
+            elif not last_check or datetime.datetime.now() > last_check + datetime.timedelta(minutes=8):
                 last_post_id = await get_last_message(client, channel_url)
                 logger.info(f'Проверка группы {group.name} на пропущенные посты: '
                             f'последний - {last_post_id}, new_post_id - {group.new_post_id}')
