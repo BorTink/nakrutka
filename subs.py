@@ -61,7 +61,7 @@ async def send_sub(channel_url, subs_count, group_name, cur_hour):
     sub_url = f"{service_url}/api/v2"
     response = requests.post(sub_url, data=payload)
     response_json = response.json()
-
+    logger.info(response_json)
     logger.info(f"Ордер на {subs_count} подписчиков в канале '{group_name}' на  период {cur_hour} был размещен в "
                 f"{datetime.datetime.now().time()}")
     return response_json
