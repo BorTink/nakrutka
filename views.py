@@ -13,13 +13,13 @@ import sqlite3
 
 import dal
 
-first_hour_wait = 4200
-second_hour_wait = 3600
+first_hour_wait = 120
 
 
 async def calculate_view_distribution(post_hour, total_views, cur_hour):
+    # Первые 6 свечек - это 10-и минутки в первый час. Остальное - все прочие часы.
     base_distribution = np.array([
-        1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
+        0.25, 0.2, 0.18, 0.15, 0.12, 0.1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
         0.13, 0.11, 0.09, 0.06, 0.08, 0.06, 0.05, 0.04, 0.04])
 
     # Night - early morning distribution from 21:00 to 06:59
@@ -40,21 +40,21 @@ async def calculate_view_distribution(post_hour, total_views, cur_hour):
     #
     #     night_distribution_main[post_hour] = night_distribution[post_hour]
     #     night_distribution = night_distribution_main[post_hour:]
-    #     rand = np.random.choice([0.03, 0.04, 0.05], 72 - len(night_distribution))
+    #     rand = np.random.choice([0.03, 0.04, 0.05], 77 - len(night_distribution))
     #     full_distribution = np.concatenate((
     #         night_distribution,
     #         rand
     #     ))
     # else:
     if True:
-        rand = np.random.choice([0.03, 0.04, 0.05], 72 - len(base_distribution))
+        rand = np.random.choice([0.03, 0.04, 0.05], 77 - len(base_distribution))
         full_distribution = np.concatenate((
             base_distribution,
             rand
         ))
 
-    full_distribution = full_distribution + np.random.uniform(low=-0.003, high=0.003, size=(72,))
-    normalized_distribution = full_distribution[:72] / full_distribution[:72].sum()
+    full_distribution = full_distribution + np.random.uniform(low=-0.003, high=0.003, size=(77,))
+    normalized_distribution = full_distribution[:77] / full_distribution[:77].sum()
     views_distribution = np.round(normalized_distribution * total_views).astype(int)
     views_distribution = np.where(views_distribution < 24, np.random.randint(low=24, high=31), views_distribution)
 
@@ -116,10 +116,6 @@ async def send_order(channel_url, post_id, order_views, left_amount, full_amount
 
 
 async def distribute_views_over_periods(channel_url, order_id, distributions, hour):
-    if hour == 0:
-        first_order = True
-    else:
-        first_order = False
     if distributions.size == 0:
         await dal.Orders.update_completed_by_id(order_id=order_id, completed=1)
         logger.info(f'Ордер с order_id = {order_id} был завершен раньше времени')
@@ -140,9 +136,13 @@ async def distribute_views_over_periods(channel_url, order_id, distributions, ho
             break
 
         await dal.Orders.update_hour_by_id(order_id=order_id, hour=hour + 1)
+        hour += 1
 
         await send_order(channel_url, do_order.post_id, views, do_order.left_amount, do_order.full_amount)
-        logger.info(f"Накрутка на {hour + 1} час была создана.")
+        if hour <= 6:
+            logger.info(f"Накрутка на 1 час была создана - {hour} отрезок ({hour * 10 - 10} минут).")
+        else:
+            logger.info(f"Накрутка на {hour - 5} час была создана.")
 
         left_amount = int(do_order.left_amount) - int(views)
         await dal.Orders.update_left_amount_by_id(order_id=order_id, amount=left_amount)
@@ -151,13 +151,12 @@ async def distribute_views_over_periods(channel_url, order_id, distributions, ho
             logger.info(f'Ордер с order_id = {order_id} был завершен')
             break
 
-        hour += 1
-
-        if first_order:
-            await asyncio.sleep(first_hour_wait)
-            first_order = False
+        if hour < 6:
+            await asyncio.sleep(first_hour_wait // 6)
+        elif hour == 6:
+            await asyncio.sleep(first_hour_wait // 6 + 120)
         else:
-            await asyncio.sleep(second_hour_wait)
+            await asyncio.sleep(first_hour_wait)
 
 
 async def start_post_views_increasing(channel_url, order_id, views, cur_hour, post_time):
@@ -180,7 +179,14 @@ async def start_backend():
             elif any([
                 order.started == 0,
                 order.completed == 0 and order.stopped == 0 and
-                (datetime.datetime.utcnow() - order.last_update) > datetime.timedelta(seconds=first_hour_wait + 1000)
+                (
+                    order.hour < 6 and
+                    (datetime.datetime.utcnow() - order.last_update) > datetime.timedelta(seconds=first_hour_wait // 6 + 20)
+                    or
+                    order.hour >= 6 and
+                    (datetime.datetime.utcnow() - order.last_update) > datetime.timedelta(
+                    seconds=first_hour_wait + 20)
+                )
             ]):
                 logger.info(f'Совершается ордер - {order.group_link}/{order.post_id}')
                 channel_url = order.group_link

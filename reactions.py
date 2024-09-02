@@ -15,24 +15,23 @@ import sqlite3
 from utils import generate_random_list
 import dal
 
-first_hour_wait = 4200
-second_hour_wait = 3600
+first_hour_wait = 3600
 
 
 async def calculate_view_distribution(post_hour, total_reactions_count, cur_hour):
     base_distribution = np.array([
-        1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
+        0.25, 0.2, 0.18, 0.15, 0.12, 0.1, 0.55, 0.4, 0.35, 0.28, 0.23, 0.18, 0.15, 0.1, 0.08, 0.1, 0.08, 0.1, 0.13, 0.16,
         0.13, 0.11, 0.09, 0.06, 0.08, 0.06, 0.05, 0.04, 0.04])
 
     if True:
-        rand = np.random.choice([0.03, 0.04, 0.05], 72 - len(base_distribution))
+        rand = np.random.choice([0.03, 0.04, 0.05], 77 - len(base_distribution))
         full_distribution = np.concatenate((
             base_distribution,
             rand
         ))
 
-    full_distribution = full_distribution + np.random.uniform(low=-0.003, high=0.003, size=(72,))
-    normalized_distribution = full_distribution[:72] / full_distribution[:72].sum()
+    full_distribution = full_distribution + np.random.uniform(low=-0.003, high=0.003, size=(77,))
+    normalized_distribution = full_distribution[:77] / full_distribution[:77].sum()
     reactions_count_distribution = np.round(normalized_distribution * total_reactions_count).astype(int)
     reactions_count_distribution = np.where(reactions_count_distribution < 10, reactions_count_distribution + 10, reactions_count_distribution)
 
@@ -80,10 +79,6 @@ async def send_reaction(channel_url, post_id, reactions_count):
 
 
 async def distribute_reactions_count_over_periods(channel_url, reaction_id, distributions, hour):
-    if hour == 0:
-        first_reaction = True
-    else:
-        first_reaction = False
     if distributions.size == 0:
         await dal.Reactions.update_completed_by_id(reaction_id=reaction_id, completed=1)
         logger.info(f'Ордер на реакции с id = {reaction_id} был завершен раньше времени')
@@ -106,7 +101,10 @@ async def distribute_reactions_count_over_periods(channel_url, reaction_id, dist
         await dal.Reactions.update_hour_by_id(reaction_id=reaction_id, hour=hour + 1)
 
         await send_reaction(channel_url, do_reaction.post_id, reactions_count)
-        logger.info(f"Накрутка на {hour + 1} час была создана.")
+        if hour <= 6:
+            logger.info(f"Накрутка на 1 час была создана - {hour} отрезок ({hour * 10 - 10} минут).")
+        else:
+            logger.info(f"Накрутка на {hour - 5} час была создана.")
 
         left_amount = int(do_reaction.left_amount) - int(reactions_count)
         await dal.Reactions.update_left_amount_by_id(reaction_id=reaction_id, amount=left_amount)
@@ -117,11 +115,12 @@ async def distribute_reactions_count_over_periods(channel_url, reaction_id, dist
 
         hour += 1
 
-        if first_reaction:
-            await asyncio.sleep(first_hour_wait)
-            first_reaction = False
+        if hour < 6:
+            await asyncio.sleep(first_hour_wait / 6)
+        elif hour == 6:
+            await asyncio.sleep(first_hour_wait / 6 + 120)
         else:
-            await asyncio.sleep(second_hour_wait)
+            await asyncio.sleep(first_hour_wait)
 
 
 async def start_post_reactions_increasing(channel_url, reaction_id, reactions_count, cur_hour, post_time):
@@ -144,7 +143,15 @@ async def start_backend():
             elif any([
                 reaction.started == 0,
                 reaction.completed == 0 and reaction.stopped == 0 and
-                (datetime.datetime.utcnow() - reaction.last_update) > datetime.timedelta(seconds=first_hour_wait + 1000)
+                (
+                    reaction.hour < 6 and
+                    (datetime.datetime.utcnow() - reaction.last_update) > datetime.timedelta(
+                    seconds=first_hour_wait + 20)
+                    or
+                    reaction.hour >= 6 and
+                    (datetime.datetime.utcnow() - reaction.last_update) > datetime.timedelta(
+                    seconds=first_hour_wait + 20)
+                )
             ]):
                 logger.info(f'Совершается ордер на реакции - {reaction.group_link}/{reaction.post_id}')
                 channel_url = reaction.group_link
