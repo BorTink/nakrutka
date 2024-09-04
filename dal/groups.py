@@ -11,6 +11,8 @@ class Groups:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT,
                 link TEXT,
+                profile INTEGER,
+                
                 new_post_id INTEGER,
                 amount INTEGER,
                 reactions_amount INTEGER DEFAULT 0,
@@ -81,6 +83,23 @@ class Groups:
             new_post_id = await cur.fetchone()
             if new_post_id:
                 return int(new_post_id['new_post_id'])
+            else:
+                return None
+
+    @classmethod
+    async def get_group_profile_by_id(cls, group_id):
+        async with dal.Connection() as cur:
+            await cur.execute("""
+                            SELECT profile
+                            FROM groups
+                            WHERE deleted == 0
+                            AND id = ?
+                            ORDER BY last_update DESC
+                        """, (group_id,))
+
+            profile = await cur.fetchone()
+            if profile:
+                return int(profile['profile'])
             else:
                 return None
 

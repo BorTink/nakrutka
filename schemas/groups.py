@@ -7,9 +7,12 @@ class Group(BaseModel):
     id: int
     name: str
     link: str
+    profile: int
+
     new_post_id: Optional[int]
     amount: int
     reactions_amount: int
+
     setup: int
     auto_orders: int
     auto_reactions: int
