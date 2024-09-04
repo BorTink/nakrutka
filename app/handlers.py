@@ -23,19 +23,25 @@ dp.middleware.setup(LoggingMiddleware())
 
 
 @dp.message_handler(state='*', commands=['start'])
-async def start(message: types.Message):
+async def start(message: types.Message, state: FSMContext):
     await message.answer(
         'Здравствуйте.',
         reply_markup=kb.always
     )
-    groups = await dal.Groups.get_groups_list()
+
+    profile = await get_info_from_state(state, 'profile')
+    if not profile:
+        await add_info_to_state(state, 'profile', 1)
+        profile = 1
+
+    groups = await dal.Groups.get_groups_list_by_profile(profile)
     if not groups:
         await message.answer(
-            'Список групп пуст. Добавьте группу для накрутки',
+            f'Профиль - {profile}. \n\nСписок групп пуст. Добавьте группу для накрутки',
             reply_markup=kb.start_without_groups
         )
     else:
-        text = 'Список групп для накрутки: \n'
+        text = f'Профиль - {profile}. \n\nСписок групп для накрутки: \n'
         for group in groups:
             text += f'{group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров\n'
 
@@ -46,15 +52,20 @@ async def start(message: types.Message):
 
 
 @dp.message_handler(state='*', text='Вернуться к списку групп')
-async def back_to_group(message: types.Message):
-    groups = await dal.Groups.get_groups_list()
+async def back_to_group(message: types.Message, state: FSMContext):
+    profile = await get_info_from_state(state, 'profile')
+    if not profile:
+        await add_info_to_state(state, 'profile', 1)
+        profile = 1
+
+    groups = await dal.Groups.get_groups_list_by_profile(profile)
     if not groups:
         await message.answer(
-            'Список групп пуст. Добавьте группу для накрутки',
+            f'Профиль - {profile}. \n\nСписок групп пуст. Добавьте группу для накрутки',
             reply_markup=kb.start_without_groups
         )
     else:
-        text = 'Список групп для накрутки: \n'
+        text = f'Профиль - {profile}. \n\nСписок групп для накрутки: \n'
         for group in groups:
             text += f'{group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров\n'
 
@@ -100,24 +111,30 @@ async def get_link(message: types.Message, state: FSMContext):
 async def get_group(message: types.Message, state: FSMContext):
     link = await get_info_from_state(state, 'link')
     amount = await get_info_from_state(state, 'amount')
+    profile = await get_info_from_state(state, 'profile')
+    if not profile:
+        await add_info_to_state(state, 'profile', 1)
+        profile = 1
+
     await dal.Groups.add_group(
         name=message.text,
         link=link,
-        amount=amount
+        amount=amount,
+        profile=profile
     )
     await message.answer(
         f'Группа {message.text} была добавлена'
     )
     await state.set_state('None')
 
-    groups = await dal.Groups.get_groups_list()
+    groups = await dal.Groups.get_groups_list_by_profile(profile)
     if not groups:
         await message.answer(
-            'Список групп пуст. Добавьте группу для накрутки',
+            f'Профиль - {profile}. \n\nСписок групп пуст. Добавьте группу для накрутки',
             reply_markup=kb.start_without_groups
         )
     else:
-        text = 'Список групп для накрутки: \n'
+        text = f'Профиль - {profile}. \n\nСписок групп для накрутки: \n'
         for group in groups:
             text += f'{group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров\n'
 
@@ -125,6 +142,49 @@ async def get_group(message: types.Message, state: FSMContext):
             text,
             reply_markup=kb.start
         )
+
+
+@dp.callback_query_handler(state='*', text='Сменить профиль')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    profile = await get_info_from_state(state, 'profile')
+    profile_list = await dal.Groups.get_profile_list()
+    await callback.message.answer(
+        f'Нынешний профиль - {profile}. Введите номер нового профиля.\n'
+        f'Существующие профили \n(чтобы создать новый профиль введите новую цифру):\n\n{"; ".join(profile_list)}'
+    )
+    await callback.message.answer('Введите номер профиля')
+    await state.set_state('Сменить профиль')
+
+
+@dp.message_handler(state='Сменить профиль')
+async def get_link(message: types.Message, state: FSMContext):
+    if not message.text.isnumeric():
+        await message.answer(
+            'Введите число'
+        )
+    elif int(message.text) <= 0:
+        await message.answer(
+            'Введите число больше 0'
+        )
+    else:
+        profile = int(message.text)
+        await add_info_to_state(state, 'profile', profile)
+
+        groups = await dal.Groups.get_groups_list_by_profile(profile)
+        if not groups:
+            await message.answer(
+                f'Профиль - {profile}. \n\nСписок групп пуст. Добавьте группу для накрутки',
+                reply_markup=kb.start_without_groups
+            )
+        else:
+            text = f'Профиль - {profile}. \n\nСписок групп для накрутки: \n'
+            for group in groups:
+                text += f'{group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров\n'
+
+            await message.answer(
+                text,
+                reply_markup=kb.start
+            )
 
 
 @dp.callback_query_handler(state='*', text='Посмотреть посты у группы')
@@ -137,7 +197,8 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(state='Введите id группы')
 async def get_link(message: types.Message, state: FSMContext):
-    groups = await dal.Groups.get_groups_list()
+    profile = await get_info_from_state(state, 'profile')
+    groups = await dal.Groups.get_groups_list_by_profile(profile)
     this_group = None
     for group in groups:
         if group.id == int(message.text):
@@ -148,6 +209,7 @@ async def get_link(message: types.Message, state: FSMContext):
             views_stats = await dal.Groups.get_views_stats_by_group_id(group.id)
             subs_stats = await dal.Groups.get_subs_stats_by_group_id(group.id)
             await message.answer(
+           f'Профиль - {group.profile}\n'
                 f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
                 f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
                 f'За последний месяц накручено: \n'
@@ -159,11 +221,11 @@ async def get_link(message: types.Message, state: FSMContext):
 
     if not this_group:
         await message.answer(
-            'Такого id группы не существует'
+            'Такого id группы в этом профиле не существует'
         )
         await state.set_state('None')
 
-        text = 'Список групп для накрутки: \n'
+        text = f'Профиль - {profile}. \n\nСписок групп для накрутки: \n'
         for group in groups:
             text += f'{group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров\n'
 
@@ -199,6 +261,7 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
     await callback.message.answer(
+        f'Профиль - {group.profile}\n'
         f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
         f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
         f'За последний месяц накручено: \n'
@@ -220,6 +283,7 @@ async def get_link(message: types.Message, state: FSMContext):
     subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
     await message.answer(
+        f'Профиль - {group.profile}\n'
         f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
         f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
         f'За последний месяц накручено: \n'
@@ -279,6 +343,7 @@ async def get_link(message: types.Message, state: FSMContext):
     subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
     await message.answer(
+        f'Профиль - {group.profile}\n'
         f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
         f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
         f'За последний месяц накручено: \n'
@@ -312,6 +377,7 @@ async def get_posts(callback: types.CallbackQuery, state: FSMContext):
         subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
         await callback.message.answer(
+            f'Профиль - {group.profile}\n'
             f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
             f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
             f'За последний месяц накручено: \n'
@@ -343,6 +409,7 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
         )
 
     await callback.message.answer(
+        f'Профиль - {group.profile}\n'
         f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
         f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
         f'За последний месяц накручено: \n'
@@ -352,13 +419,57 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     )
 
 
+@dp.callback_query_handler(state='В группе', text='Сменить профиль у группы')
+async def add_group(callback: types.CallbackQuery, state: FSMContext):
+    profile = await get_info_from_state(state, 'profile')
+    profile_list = await dal.Groups.get_profile_list()
+    await callback.message.answer(
+        f'Нынешний профиль - {profile}. Введите номер нового профиля.\n'
+        f'Существующие профили \n(чтобы создать новый профиль введите новую цифру):\n\n{"; ".join(profile_list)}'
+    )
+    await state.set_state('В группе - новый профиль')
+
+
+@dp.message_handler(state='В группе - новый профиль')
+async def group__new_profile(message: types.Message, state: FSMContext):
+    if not message.text.isnumeric():
+        await message.answer(
+            'Введите число'
+        )
+    elif int(message.text) <= 0:
+        await message.answer(
+            'Введите число больше 0'
+        )
+    else:
+        profile = int(message.text)
+        await add_info_to_state(state, 'profile', profile)
+
+        group_id = await get_info_from_state(state, 'group_id')
+        await dal.Groups.update_profile_by_id(group_id, profile)
+
+        group = await dal.Groups.get_group_by_id(group_id)
+        views_stats = await dal.Groups.get_views_stats_by_group_id(group_id)
+        subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
+
+        await message.answer(
+            f'Профиль - {group.profile}\n'
+            f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
+            f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
+            f'За последний месяц накручено: \n'
+            f'{views_stats} просмотров \n'
+            f'{subs_stats} подписчиков',
+            reply_markup=kb.group
+        )
+
+
 @dp.callback_query_handler(state='В группе', text='Накрутка подписчиков')
 async def add_group(callback: types.CallbackQuery, state: FSMContext):
     group_id = await get_info_from_state(state, 'group_id')
+    group = await dal.Groups.get_group_by_id(group_id)
     sub = await dal.Subs.get_sub_by_group_id(group_id)
 
     await state.set_state('В подписчиках')
-    with open('services.json', 'r') as file:
+    with open(f'services_{group.profile}.json', 'r') as file:
         file_data = json.load(file)
 
     subs_wait_time = file_data['subs_wait_time']
@@ -420,6 +531,7 @@ async def get_link(message: types.Message, state: FSMContext):
         subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
         await message.answer(
+            f'Профиль - {group.profile}\n'
             f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
             f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
             f'За последний месяц накручено: \n'
@@ -447,6 +559,7 @@ async def switch_subs(callback: types.CallbackQuery, state: FSMContext):
     subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
     await callback.message.answer(
+        f'Профиль - {group.profile}\n'
         f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
         f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
         f'За последний месяц накручено: \n'
@@ -468,6 +581,7 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
     await callback.message.answer(
+        f'Профиль - {group.profile}\n'
         f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
         f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
         f'За последний месяц накручено: \n'
@@ -513,6 +627,7 @@ async def get_link(message: types.Message, state: FSMContext):
             subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
             await message.answer(
+                f'Профиль - {group.profile}\n'
                 f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
                 f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
                 f'За последний месяц накручено: \n'
@@ -535,6 +650,7 @@ async def get_link(message: types.Message, state: FSMContext):
             subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
 
             await message.answer(
+                f'Профиль - {group.profile}\n'
                 f'Выбрана группа - {group.id} | {group.name} | {group.link} | Новый пост - {group.amount} просмотров | '
                 f'Статус - {"ПРИОСТАНОВЛЕНА" if not group.auto_orders else "АКТИВНА"} | '
                 f'За последний месяц накручено: \n'
@@ -623,9 +739,13 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(state='Реакции - Введите id поста для накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric() and int(message.text) > 0:
+    if not message.text.isnumeric():
         await message.answer(
-            'Введите число, больше 0'
+            'Введите число'
+        )
+    elif int(message.text) <= 0:
+        await message.answer(
+            'Введите число больше 0'
         )
     else:
         group_id = await get_info_from_state(state, 'group_id')

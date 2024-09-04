@@ -12,10 +12,13 @@ start_1 = InlineKeyboardButton(
 start_2 = InlineKeyboardButton(
     'Посмотреть посты у группы', callback_data='Посмотреть посты у группы'
 )
-start.add(start_1).add(start_2)
+start_3 = InlineKeyboardButton(
+    'Сменить профиль', callback_data='Сменить профиль'
+)
+start.add(start_1).add(start_2).add(start_3)
 
 start_without_groups = InlineKeyboardMarkup()
-start_without_groups.add(start_1)
+start_without_groups.add(start_1).add(start_3)
 
 
 group = InlineKeyboardMarkup()
@@ -35,12 +38,15 @@ group_5 = InlineKeyboardButton(
     'Отключить накрутку на все существующие заказы', callback_data='Отключить накрутку'
 )
 group_6 = InlineKeyboardButton(
-    'Перейти к накрутке подписчиков', callback_data='Накрутка подписчиков'
+    'Сменить профиль у группы', callback_data='Сменить профиль у группы'
 )
 group_7 = InlineKeyboardButton(
+    'Перейти к накрутке подписчиков', callback_data='Накрутка подписчиков'
+)
+group_8 = InlineKeyboardButton(
     'Перейти к реакциям', callback_data='Перейти к реакциям'
 )
-group.add(group_1).add(group_2).add(group_3).add(group_4).add(group_6).add(group_7)
+group.add(group_1).add(group_2).add(group_3).add(group_4).add(group_6).add(group_7).add(group_8)
 
 
 orders = InlineKeyboardMarkup()
