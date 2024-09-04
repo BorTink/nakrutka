@@ -52,11 +52,11 @@ async def get_channel_name(channel_url):
     return channel_url.split('/')[-1]
 
 
-async def send_reaction(channel_url, post_id, reactions_count):
+async def send_reaction(channel_url, post_id, reactions_count, profile):
     channel_name = await get_channel_name(channel_url)
     # Service 1107 cannot manage requests with less than 100 reactions_count,
     # so we reroute request to a different service id
-    with open('services.json', 'r') as file:
+    with open(f'services/services_{profile}.json', 'r') as file:
         file_data = json.load(file)
 
     service_ids = file_data['reactions_service_ids']
@@ -100,7 +100,8 @@ async def distribute_reactions_count_over_periods(channel_url, reaction_id, dist
 
         await dal.Reactions.update_hour_by_id(reaction_id=reaction_id, hour=hour + 1)
 
-        await send_reaction(channel_url, do_reaction.post_id, reactions_count)
+        profile = dal.Groups.get_group_profile_by_id(do_reaction.group_id)
+        await send_reaction(channel_url, do_reaction.post_id, reactions_count, profile)
         if hour <= 6:
             logger.info(f"Накрутка на 1 час была создана - {hour} отрезок ({hour * 10 - 10} минут).")
         else:
