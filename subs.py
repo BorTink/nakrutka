@@ -42,8 +42,8 @@ async def get_channel_name(channel_url):
     return channel_url.split('/')[-1]
 
 
-async def send_sub(channel_url, subs_count, group_name, cur_hour):
-    with open('services.json', 'r') as file:
+async def send_sub(channel_url, subs_count, group_name, cur_hour, profile):
+    with open(f'services/services_{profile}.json', 'r') as file:
         file_data = json.load(file)
 
     service_id = file_data['subscribers_service_id']
@@ -110,7 +110,8 @@ async def start_post_views_increasing(channel_url, group_id, total_views, cur_ho
 
         await dal.Subs.update_hour_by_group_id(group_id=group_id, hour=cur_hour + 1)
 
-        await send_sub(channel_url, subs_count, group.name, cur_hour)  # Place the sub
+        profile = dal.Groups.get_group_profile_by_id(do_sub.group_id)
+        await send_sub(channel_url, subs_count, group.name, cur_hour, profile)  # Place the sub
         left_amount = int(do_sub.left_amount) - int(subs_count)
 
         await dal.Subs.update_left_amount_by_group_id(group_id=group_id, amount=left_amount)
@@ -129,10 +130,6 @@ async def start_backend():
 
     while True:
         subs = await dal.Subs.get_subs_list()
-        with open('services.json', 'r') as file:
-            file_data = json.load(file)
-
-        subs_wait_time = file_data['subs_wait_time']
 
         for sub in subs:
             if sub.left_amount <= 0:
@@ -145,6 +142,12 @@ async def start_backend():
             ]):
                 logger.info(f'Выполняем ордер для подписчиков - {sub.group_link}')
                 channel_url = sub.group_link
+
+                profile = dal.Groups.get_group_profile_by_id(sub.group_id)
+                with open(f'services/services_{profile}.json', 'r') as file:
+                    file_data = json.load(file)
+
+                subs_wait_time = file_data['subs_wait_time']
 
                 asyncio.create_task(
                     start_post_views_increasing(
