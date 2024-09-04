@@ -623,9 +623,9 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.message_handler(state='Реакции - Введите id поста для накрутки')
 async def get_link(message: types.Message, state: FSMContext):
-    if not message.text.isnumeric():  # TODO: добавить проверку на то, что число > 0
+    if not message.text.isnumeric() and int(message.text) > 0:
         await message.answer(
-            'Введите число'
+            'Введите число, больше 0'
         )
     else:
         group_id = await get_info_from_state(state, 'group_id')
