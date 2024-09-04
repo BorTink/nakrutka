@@ -75,11 +75,11 @@ async def get_channel_name(channel_url):
     return channel_url.split('/')[-1]
 
 
-async def send_order(channel_url, post_id, order_views, left_amount, full_amount):
+async def send_order(channel_url, post_id, order_views, left_amount, full_amount, profile):
     channel_name = await get_channel_name(channel_url)
     # Service 1107 cannot manage requests with less than 100 views,
     # so we reroute request to a different service id
-    with open('services.json', 'r') as file:
+    with open(f'services/services_{profile}.json', 'r') as file:
         file_data = json.load(file)
 
     if full_amount < 3500:
@@ -138,7 +138,8 @@ async def distribute_views_over_periods(channel_url, order_id, distributions, ho
         await dal.Orders.update_hour_by_id(order_id=order_id, hour=hour + 1)
         hour += 1
 
-        await send_order(channel_url, do_order.post_id, views, do_order.left_amount, do_order.full_amount)
+        profile = dal.Groups.get_group_profile_by_id(do_order.group_id)
+        await send_order(channel_url, do_order.post_id, views, do_order.left_amount, do_order.full_amount, profile)
         if hour <= 6:
             logger.info(f"Накрутка на 1 час была создана - {hour} отрезок ({hour * 10 - 10} минут).")
         else:
