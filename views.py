@@ -12,8 +12,7 @@ import numpy as np
 import sqlite3
 
 import dal
-
-first_hour_wait = 120
+from auth import first_hour_wait
 
 
 async def calculate_view_distribution(post_hour, total_views, cur_hour):

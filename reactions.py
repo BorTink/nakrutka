@@ -14,8 +14,7 @@ import sqlite3
 
 from utils import generate_random_list
 import dal
-
-first_hour_wait = 3600
+from auth import first_hour_wait
 
 
 async def calculate_view_distribution(post_hour, total_reactions_count, cur_hour):
