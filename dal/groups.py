@@ -164,7 +164,7 @@ class Groups:
             if profiles:
                 return [str(profile['profile']) for profile in profiles]
             else:
-                return None
+                return []
 
 
     @classmethod
