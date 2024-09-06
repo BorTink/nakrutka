@@ -28,7 +28,8 @@ async def create_services_file_if_not_exists(profile):
     services_path = os.path.dirname(os.path.abspath(__file__)) + f'/services/services_{profile}.json'
 
     if not os.path.exists(services_path):
-        with open(f'services/services_1.json', 'r') as file:
+        template_path = os.path.dirname(os.path.abspath(__file__)) + f'/services/services_1.json'
+        with open(template_path, 'r') as file:
             file_data = json.load(file)
 
         with open(services_path, 'w') as new_file:

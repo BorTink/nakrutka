@@ -1,5 +1,6 @@
 import os
 import json
+import pathlib
 
 from aiogram import Dispatcher, types, Bot
 from aiogram.dispatcher import FSMContext
@@ -448,6 +449,8 @@ async def group__new_profile(message: types.Message, state: FSMContext):
         group_id = await get_info_from_state(state, 'group_id')
         await dal.Groups.update_profile_by_id(group_id, profile)
 
+        await state.set_state('В группе')
+
         group = await dal.Groups.get_group_by_id(group_id)
         views_stats = await dal.Groups.get_views_stats_by_group_id(group_id)
         subs_stats = await dal.Groups.get_subs_stats_by_group_id(group_id)
@@ -470,7 +473,9 @@ async def add_group(callback: types.CallbackQuery, state: FSMContext):
     sub = await dal.Subs.get_sub_by_group_id(group_id)
 
     await state.set_state('В подписчиках')
-    with open(f'services_{group.profile}.json', 'r') as file:
+
+    file_path = str(pathlib.Path(__file__).parent.parent) + f'/services/services_{group.profile}.json'
+    with open(file_path, 'r') as file:
         file_data = json.load(file)
 
     subs_wait_time = file_data['subs_wait_time']
