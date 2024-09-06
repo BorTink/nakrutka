@@ -100,7 +100,7 @@ async def distribute_reactions_count_over_periods(channel_url, reaction_id, dist
 
         await dal.Reactions.update_hour_by_id(reaction_id=reaction_id, hour=hour + 1)
 
-        profile = dal.Groups.get_group_profile_by_id(do_reaction.group_id)
+        profile = await dal.Groups.get_group_profile_by_id(do_reaction.group_id)
         await send_reaction(channel_url, do_reaction.post_id, reactions_count, profile)
         if hour <= 6:
             logger.info(f"Накрутка на 1 час была создана - {hour} отрезок ({hour * 10 - 10} минут).")
