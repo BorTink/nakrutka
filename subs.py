@@ -110,7 +110,7 @@ async def start_post_views_increasing(channel_url, group_id, total_views, cur_ho
 
         await dal.Subs.update_hour_by_group_id(group_id=group_id, hour=cur_hour + 1)
 
-        profile = dal.Groups.get_group_profile_by_id(do_sub.group_id)
+        profile = await dal.Groups.get_group_profile_by_id(do_sub.group_id)
         await send_sub(channel_url, subs_count, group.name, cur_hour, profile)  # Place the sub
         left_amount = int(do_sub.left_amount) - int(subs_count)
 
@@ -143,7 +143,7 @@ async def start_backend():
                 logger.info(f'Выполняем ордер для подписчиков - {sub.group_link}')
                 channel_url = sub.group_link
 
-                profile = dal.Groups.get_group_profile_by_id(sub.group_id)
+                profile = await dal.Groups.get_group_profile_by_id(sub.group_id)
                 with open(f'services/services_{profile}.json', 'r') as file:
                     file_data = json.load(file)
 

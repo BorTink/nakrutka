@@ -138,7 +138,7 @@ async def distribute_views_over_periods(channel_url, order_id, distributions, ho
         await dal.Orders.update_hour_by_id(order_id=order_id, hour=hour + 1)
         hour += 1
 
-        profile = dal.Groups.get_group_profile_by_id(do_order.group_id)
+        profile = await dal.Groups.get_group_profile_by_id(do_order.group_id)
         await send_order(channel_url, do_order.post_id, views, do_order.left_amount, do_order.full_amount, profile)
         if hour <= 6:
             logger.info(f"Накрутка на 1 час была создана - {hour} отрезок ({hour * 10 - 10} минут).")

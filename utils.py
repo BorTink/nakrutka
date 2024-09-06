@@ -1,4 +1,6 @@
 import random
+import os
+import json
 
 
 async def add_info_to_state(state, key, value):
@@ -20,3 +22,14 @@ def generate_random_list(total_sum, n):
     normalized_numbers = [num * (total_sum / sum_numbers) for num in numbers]
 
     return normalized_numbers
+
+
+async def create_services_file_if_not_exists(profile):
+    services_path = os.path.dirname(os.path.abspath(__file__)) + f'/services/services_{profile}.json'
+
+    if not os.path.exists(services_path):
+        with open(f'services/services_1.json', 'r') as file:
+            file_data = json.load(file)
+
+        with open(services_path, 'w') as new_file:
+            json.dump(file_data, new_file, ensure_ascii=False)

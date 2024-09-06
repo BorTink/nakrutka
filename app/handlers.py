@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 import dal
 import app.keyboards as kb
-from utils import add_info_to_state, get_info_from_state
+from utils import add_info_to_state, get_info_from_state, create_services_file_if_not_exists
 
 # Создание объектов бота, хранилища и диспетчера
 load_dotenv()
@@ -169,6 +169,7 @@ async def get_link(message: types.Message, state: FSMContext):
     else:
         profile = int(message.text)
         await add_info_to_state(state, 'profile', profile)
+        await create_services_file_if_not_exists(profile)
 
         groups = await dal.Groups.get_groups_list_by_profile(profile)
         if not groups:
