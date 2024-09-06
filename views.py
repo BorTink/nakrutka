@@ -12,8 +12,7 @@ import numpy as np
 import sqlite3
 
 import dal
-
-first_hour_wait = 120
+from auth import first_hour_wait
 
 
 async def calculate_view_distribution(post_hour, total_views, cur_hour):
@@ -56,7 +55,7 @@ async def calculate_view_distribution(post_hour, total_views, cur_hour):
     full_distribution = full_distribution + np.random.uniform(low=-0.003, high=0.003, size=(77,))
     normalized_distribution = full_distribution[:77] / full_distribution[:77].sum()
     views_distribution = np.round(normalized_distribution * total_views).astype(int)
-    views_distribution = np.where(views_distribution < 50, np.random.randint(low=50, high=60), views_distribution)
+    views_distribution = np.where(views_distribution < 24, np.random.randint(low=24, high=31), views_distribution)
 
     np_and = np.logical_and(views_distribution >= 85, views_distribution < 100)
     views_distribution = np.where(np_and, views_distribution + 15, views_distribution)
