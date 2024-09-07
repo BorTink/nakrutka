@@ -129,6 +129,11 @@ async def start_backend():
     logger.info('Программа для накрутки подписчиков была запущена')
 
     while True:
+        with open(f'services/services_1.json', 'r') as file:
+            file_data = json.load(file)
+
+        subs_wait_time = file_data['subs_wait_time']
+
         subs = await dal.Subs.get_subs_list()
 
         for sub in subs:
@@ -138,16 +143,10 @@ async def start_backend():
             elif any([
                 sub.started == 0,
                 sub.completed == 0 and sub.stopped == 0 and
-                (datetime.datetime.utcnow() - sub.last_update) > datetime.timedelta(seconds=subs_wait_time + 2)
+                (datetime.datetime.utcnow() - sub.last_update) > datetime.timedelta(seconds=3600 + 2)
             ]):
                 logger.info(f'Выполняем ордер для подписчиков - {sub.group_link}')
                 channel_url = sub.group_link
-
-                profile = await dal.Groups.get_group_profile_by_id(sub.group_id)
-                with open(f'services/services_{profile}.json', 'r') as file:
-                    file_data = json.load(file)
-
-                subs_wait_time = file_data['subs_wait_time']
 
                 asyncio.create_task(
                     start_post_views_increasing(
