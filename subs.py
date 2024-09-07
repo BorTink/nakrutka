@@ -126,12 +126,26 @@ async def start_post_views_increasing(channel_url, group_id, total_views, cur_ho
 async def start_backend():
     await dal.Groups.create_db()
     await dal.Subs.create_db()
+    services_info_update_time = datetime.datetime.now() - datetime.timedelta(hours=30)
+    profiles_sub_wait_time = {}
     logger.info('Программа для накрутки подписчиков была запущена')
 
     while True:
+        if (datetime.datetime.utcnow() - services_info_update_time) > datetime.timedelta(hours=1):
+            services_info_update_time = datetime.datetime.now()
+            profiles = await dal.Groups.get_profile_list()
+            for profile in profiles:
+                with open(f'services/services_{profile}.json', 'r') as file:
+                    file_data = json.load(file)
+
+                profiles_sub_wait_time.update({
+                    profile: file_data['subs_wait_time']
+                })
+
         subs = await dal.Subs.get_subs_list()
 
         for sub in subs:
+            profiles_sub_wait_time.get()
             if sub.left_amount <= 0:
                 await dal.Subs.update_completed_by_group_id(group_id=sub.group_id)
 
@@ -176,7 +190,7 @@ def main():
         logger.info(f'Ошибка - database is locked. Пробуем перезапустить')
         time.sleep(10.5)
     except Exception as exc:
-        logger.info(f'Программа прекратила работу. Ошибка - {type(exc)}')
+        logger.info(f'Программа прекратила работу. Ошибка - {exc}')
         try:
             sys.exit(130)
         except SystemExit:
