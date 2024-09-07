@@ -1,2 +1,3 @@
 /app/.env
 /services/services_1.json
+/auth.py
