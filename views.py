@@ -81,17 +81,12 @@ async def send_order(channel_url, post_id, order_views, left_amount, full_amount
     with open(f'services/services_{profile}.json', 'r') as file:
         file_data = json.load(file)
 
-    if full_amount < 3500:
-        service_id = file_data['service_id_lower_than_100']
-        api_key = file_data['api_key_lower_than_100']
-        service_url = file_data['url_lower_than_100']
-
-    elif order_views > 200:
+    if order_views > 200:
         service_id = file_data['service_id_higher_than_200']
         api_key = file_data['api_key_higher_than_200']
         service_url = file_data['url_higher_than_200']
 
-    elif 100 <= order_views <= 200 or left_amount > 3500:
+    elif 100 <= order_views <= 200:
         service_id = file_data['service_id_100_200']
         api_key = file_data['api_key_100_200']
         service_url = file_data['url_100_200']
